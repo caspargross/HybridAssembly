@@ -12,6 +12,7 @@ params.longreadName = 'ESBL2048/*.fastq'
 params.longreadFolder = '/mnt/projects/external/Microbiome/Citrobacter/samples/Nanopore'
 
 params.outFolder = '/mnt/projects/external/Microbiome/Citrobacter/analysis'
+params.reference = 
 
 // Input channel for short read (Illumina) files
 Channel
@@ -70,7 +71,7 @@ process sspace_scaffolding{
     script:
     """
     echo 'Lib1 bowtie '${forward}, ${reverse} '500 0.5 FR' > sspace.lib
-    perl ${SSPACE} -l sspace.lib -s scaffolds -g 0 -x 0 -T ${params.cpu} -k 3 -a 0.7 -n 20 -z 500 -b ${data_id} -p 1
+    perl ${SSPACE} -l sspace.lib -s ${scaffolds} -g 0 -x 0 -T ${params.cpu} -k 3 -a 0.7 -n 20 -z 500 -b ${data_id} -p 1
     """
 }
 
@@ -90,8 +91,27 @@ process gapfiller{
    script:
    """
    echo 'Lib1GF bowtie '${forward} ${reverse} '500 0.5 FR' > gapfill.lib
-   perl ${GAPFILLER} -l gapfill.lib -s scaffolds -m 32 -t 10 -o 2 -r 0.7 -d 200 -n 10 -i 15 -g 0 -T 5 -b ${data_id}
+   perl ${GAPFILLER} -l gapfill.lib -s ${scaffolds} -m 32 -t 10 -o 2 -r 0.7 -d 200 -n 10 -i 15 -g 0 -T 5 -b ${data_id}
    """
 }
 
+process reference_alignment{
+    tag{data_id}
+    
+    publishDir "${params.outFolder}/${data_id}/mummer", mode: 'copy'
 
+    input:
+    file(gapfilled) from finalScaffolds
+
+    script:
+    """
+    ${MUMMER}/nucmer --mum -l 100 -c 150 -p={$data_id}mummer ${params.reference} ${gapfilled}
+    ${MUMMER}/delta-filter -m {$data_id}mummer.delta > {$data_id}mummer.fdelta
+    ${MUMMER}/delta-filter -q {$data_id}mummer.delta > {$data_id}mummer.qdelta
+    ${MUMMER}/delta-filter -1 {$data_id}mummer.delta > {$data_id}mummer.1delta
+    ${MUMMER}/show-coords -lrcT {$data_id}mummer.fdelta | sort -k13 -k1n -k2n > {$data_id}mummer.coords
+    ${MUMMER}/show-tiling -c -l 1 -i 0 -V 0 {$data_id}mummer.fdelta > {$data_id}mummer.tiling
+    ${MUMMER}/show-snps -ClrTH {$data_id}mummer.1delta > {$data_id}mummer.snps
+    ${MUMMER}/mummerplot {$data_id}mummer.qdelta -R ${params.reference} -Q ${gapfilled} -p gapfilled {$data_id}mummer/out --filter --layout -postscript
+    """ 
+}
