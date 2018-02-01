@@ -5,13 +5,20 @@
 #                              #
 ################################
 
-FROM ubuntu:16.04
+FROM debian:jessie 
 MAINTAINER mail@caspar.one
 
 # Commont applications
-RUN apt-get update -y
-RUN apt-get install -y python
-RUN apt-get install -y perl
+RUN apt-get update && apt-get install --yes --no-install-recommends \
+    wget \
+    locales \
+    vim-tiny \
+    git \
+    cmake \
+    build-essential \
+    gcc-multilib \
+    perl \
+    python
 
 # Install JAVA
 RUN add-apt-repository ppa:webupd8team/java &&\
