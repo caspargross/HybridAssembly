@@ -11,16 +11,21 @@ params.shortreadFolder = '/mnt/projects/external/Microbiome/Citrobacter/samples/
 params.longreadName = 'ESBL2048/*.fastq'
 params.longreadFolder = '/mnt/projects/external/Microbiome/Citrobacter/samples/Nanopore'
 
-params.outFolder = 'mnt/projects/external/Microbiome/Citrobacter/analysis'
+params.outFolder = '/mnt/projects/external/Microbiome/Citrobacter/analysis'
 
 // Input channel for short read (Illumina) files
-println("Short read input files:")
 Channel
     .fromFilePairs("$params.shortreadFolder/$params.shortreadName", flat: true)
     .set{readPairs}
 
+// Multiply read pairs for all subprocesses
+readPairs.into {
+    readPairs1
+    readPairs2
+    readPairs3
+}
+
 // Input channel for nanopore reads
-println("Long read input files:")
 Channel
     .fromPath("${params.longreadFolder}/${params.longreadName}")
     .set{longreads}
@@ -33,7 +38,7 @@ process assembly{
     publishDir "${params.outFolder}/${data_id}/spades", mode: 'copy'
 
     input:
-    set data_id, file(forward), file(reverse) from readPairs
+    set data_id, file(forward), file(reverse) from readPairs1
     file(longread) from longreads
 
     output:
@@ -56,7 +61,7 @@ process sspace_scaffolding{
     tag{data_id}
 
     input:
-    set data_id, file(forward), file(reverse) from readPairs
+    set data_id, file(forward), file(reverse) from readPairs2
     file(scaffolds) from spadesScaffolds
 
     output:
@@ -65,7 +70,7 @@ process sspace_scaffolding{
     script:
     """
     echo 'Lib1 bowtie '${forward}, ${reverse} '500 0.5 FR' > sspace.lib
-    perl $SSPACE -l sspace.lib -s scaffolds -g 0 -x 0 -T ${params.cpu} -k 3 -a 0.7 -n 20 -z 500 -b ${data_id} -p 1
+    perl ${SSPACE} -l sspace.lib -s scaffolds -g 0 -x 0 -T ${params.cpu} -k 3 -a 0.7 -n 20 -z 500 -b ${data_id} -p 1
     """
 }
 
@@ -76,7 +81,7 @@ process gapfiller{
    publishDir "${params.outFolder}/${data_id}/gapfiller", mode: 'copy' 
    
    input:
-   set data_id, file(forward), file(reverse) from readPairs
+   set data_id, file(forward), file(reverse) from readPairs3
    file(scaffolds) from sspaceScaffolds
    
    output:
@@ -85,7 +90,7 @@ process gapfiller{
    script:
    """
    echo 'Lib1GF bowtie '${forward} ${reverse} '500 0.5 FR' > gapfill.lib
-   perl $GAPFILLER -l gapfill.lib -s scaffolds -m 32 -t 10 -o 2 -r 0.7 -d 200 -n 10 -i 15 -g 0 -T 5 -b ${data_id}
+   perl ${GAPFILLER} -l gapfill.lib -s scaffolds -m 32 -t 10 -o 2 -r 0.7 -d 200 -n 10 -i 15 -g 0 -T 5 -b ${data_id}
    """
 }
 
