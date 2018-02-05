@@ -1,36 +1,18 @@
 #!/usr/bin/env/ nextflow
-
 params.cpu = 10
 params.mem = 100
-
-//params.shortreadName = '*_*_L001_R{1,2}*.fastq.gz'
-params.shortreadName = 'ESBL2048_S2_L001_R{1,2}*.fastq.gz'
-params.shortreadFolder = '/mnt/projects/external/Microbiome/Citrobacter/samples/Illumina/2016-07-20-IMP'
-
-//params.longreadName = '*/*.fastq'
-params.longreadName = 'ESBL2048/*.fastq'
-params.longreadFolder = '/mnt/projects/external/Microbiome/Citrobacter/samples/Nanopore'
-
+params.pathFile = 'file_locations.csv'
 params.outFolder = '/mnt/projects/external/Microbiome/Citrobacter/analysis'
-params.reference = 
 
-// Input channel for short read (Illumina) files
-Channel
-    .fromFilePairs("$params.shortreadFolder/$params.shortreadName", flat: true)
-    .set{readPairs}
 
-// Multiply read pairs for all subprocesses
-readPairs.into {
-    readPairs1
-    readPairs2
-    readPairs3
-}
+//inputFiles
+files = Channel.fromPath(params.pathFile)
+    .ifEmpty {error "Cannot find file with path locations in ${params.files}"}\
+    .splitCsv(header: true)
+    .view()
 
-// Input channel for nanopore reads
-Channel
-    .fromPath("${params.longreadFolder}/${params.longreadName}")
-    .set{longreads}
-
+// Multiply input file channel
+files.into{ files1; files2; files3; files4}
 
 process assembly{
     tag{data_id}
@@ -39,11 +21,11 @@ process assembly{
     publishDir "${params.outFolder}/${data_id}/spades", mode: 'copy'
 
     input:
-    set data_id, file(forward), file(reverse) from readPairs1
-    file(longread) from longreads
+    set data_id, forward, reverse, longread from files1  
 
     output:
-    set data_id, file("${data_id}SpadesScaffolds.fasta") into spadesScaffolds
+    file("${data_id}SpadesScaffolds.fasta") into spadesScaffolds
+    file("contigs.fasta")
 
     script:
     """
@@ -62,16 +44,16 @@ process sspace_scaffolding{
     tag{data_id}
 
     input:
-    set data_id, file(forward), file(reverse) from readPairs2
+    set data_id, file(forward), file(reverse), longread from files2  
     file(scaffolds) from spadesScaffolds
 
     output:
-    file("${data_id}sspace.final.scaffolds.fasta") into sspaceScaffolds
+    file("sspace/sspace.final.scaffolds.fasta") into sspaceScaffolds
 
     script:
     """
-    echo 'Lib1 bowtie '${forward}, ${reverse} '500 0.5 FR' > sspace.lib
-    perl ${SSPACE} -l sspace.lib -s ${scaffolds} -g 0 -x 0 -T ${params.cpu} -k 3 -a 0.7 -n 20 -z 500 -b ${data_id} -p 1
+    echo "Lib1 bowtie ${params.shortreadFolder}/${forward} ${params.shortreadFolder}/${reverse} 500 0.5 FR" > sspace.lib
+    perl ${SSPACE} -l sspace.lib -s ${scaffolds} -g 0 -x 0 -T ${params.cpu} -k 3 -a 0.7 -n 20 -z 500 -b sspace  -p 1
     """
 }
 
@@ -82,7 +64,7 @@ process gapfiller{
    publishDir "${params.outFolder}/${data_id}/gapfiller", mode: 'copy' 
    
    input:
-   set data_id, file(forward), file(reverse) from readPairs3
+   set data_id, file(forward), file(reverse), longread from files3
    file(scaffolds) from sspaceScaffolds
    
    output:
@@ -96,12 +78,14 @@ process gapfiller{
 }
 
 process reference_alignment{
-    tag{data_id}
     
     publishDir "${params.outFolder}/${data_id}/mummer", mode: 'copy'
 
     input:
     file(gapfilled) from finalScaffolds
+    
+    output:
+    file("${data_id}mummer.snps") into snps
 
     script:
     """

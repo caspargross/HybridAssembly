@@ -1,3 +1,5 @@
+/test
 /work
 .nextflow/
 .nextflow*
+file_locations.csv
