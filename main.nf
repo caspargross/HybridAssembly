@@ -12,7 +12,7 @@ files = Channel.fromPath(params.pathFile)
     .view()
 
 // Multiply input file channel
-files.into{ files1; files2; files3; files4}
+files.into{ files1; files2; files3; files4; files5}
 
 process assembly{
     tag{data_id}
@@ -50,7 +50,7 @@ if(params.scaffolder == 'sspace'){
         file(scaffolds) from spadesScaffolds1
 
         output:
-        file("sspace/sspace.final.scaffolds.fasta") into sspaceScaffolds
+        file("sspace/scaffolds.fasta") into sspaceScaffolds
 
         script:
         """
@@ -103,9 +103,10 @@ process reference_alignment{
 
     input:
     file(gapfilled) from finalScaffolds
+    set data_id, forward, reverse, longread from files5
     
     output:
-    file("${data_id}mummer.snps") into snps
+    file("mummer.snps") into snps
 
     script:
     """
