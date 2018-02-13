@@ -1,10 +1,5 @@
 #!/usr/bin/env/ nextflow
-params.cpu = 10
-params.mem = 100
-params.pathFile = 'file_locations.csv'
-params.outFolder = '/mnt/projects/external/Microbiome/Citrobacter/analysis'
 params.scaffolder = 'sspace'
-params.reference = ''
 
 //inputFiles
 files = Channel.fromPath(params.pathFile)
@@ -69,12 +64,13 @@ if(params.scaffolder == 'sspace'){
        file(scaffolds) from sspaceScaffolds
        
        output:
-       set "sspace", file("${data_id}.gapfilled.final.fa") into finalScaffolds
+       file("${data_id}_gapfiller.fasta") into finalScaffolds
 
        script:
        """
        echo 'Lib1GF bowtie '${forward} ${reverse} '500 0.5 FR' > gapfill.lib
-       perl ${GAPFILLER} -l gapfill.lib -s ${scaffolds} -m 32 -t 10 -o 2 -r 0.7 -d 200 -n 10 -i 15 -g 0 -T 5 -b ${data_id}
+       perl ${GAPFILLER} -l gapfill.lib -s ${scaffolds} -m 32 -t 10 -o 2 -r 0.7 -d 200 -n 10 -i 15 -g 0 -T 5 -b out
+       mv out/out.gapfilled.final.fa ${data_id}_gapfiller.fasta
        """
     }
 }
@@ -83,46 +79,22 @@ if(params.scaffolder == 'links'){
     process links_scaffolding{
         tag{data_id}
         
-        publishDir "${params.outFolder}/${data_id}/${params.scaffolder}/", mode: 'copy'
+        publishDir "${params.outFolder}/${data_id}/links/", mode: 'copy'
 
         input:
         set data_id, forward, reverse, longread from files4
         file(scaffolds) from spadesScaffolds2
         
         output:
-        file("links.scaffolds.fa") into finalScaffolds
+        file("${data_id}_links.fasta") into finalScaffolds
 
         script:
         """
         echo ${longread} > longreads.txt
         perl ${LINKS} -f ${scaffolds} -s longreads.txt -b links
+        mv links.scaffolds.fa ${data_id}_links.fasta
         """
     }
 
 }
-process reference_alignment{
-    
-    publishDir "${params.outFolder}/${data_id}/mummer/${params.scaffolder}/", mode: 'copy'
 
-    input:
-    file(gapfilled) from finalScaffolds
-    set data_id, forward, reverse, longread from files5
-    
-    output:
-    file("${data_id}.delta") into deltafile
-    file("${data_id}.snps") into snps
-    file("${data_id}_mummerplot.ps") into mummerplot
-    file("${data_id}_mummerplot.fplot")
-
-    script:
-    """
-    ${MUMMER}/nucmer --mum -l 100 -c 150 -p ${data_id} ${params.reference} ${gapfilled}
-    ${MUMMER}/delta-filter -m ${data_id}.delta > ${data_id}.fdelta
-    ${MUMMER}/delta-filter -q ${data_id}.delta > ${data_id}.qdelta
-    ${MUMMER}/delta-filter -1 ${data_id}.delta > ${data_id}.1delta
-    ${MUMMER}/show-coords -lrcT ${data_id}.fdelta | sort -k13 -k1n -k2n > ${data_id}.coords
-    ${MUMMER}/show-tiling -c -l 1 -i 0 -V 0 ${data_id}.fdelta > ${data_id}.tiling
-    ${MUMMER}/show-snps -ClrTH ${data_id}.1delta > ${data_id}.snps
-    ${MUMMER}/mummerplot ${data_id}.qdelta -R ${params.reference} -Q ${gapfilled} -p ${data_id}_mummerplot --filter --layout -postscript
-    """ 
-}
