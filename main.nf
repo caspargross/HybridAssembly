@@ -1,5 +1,17 @@
 #!/usr/bin/env/ nextflow
-params.scaffolder = 'sspace'
+params.assembly = 'spades_sspace'
+params.return_all = false 
+
+/* Pipeline paths:
+
+spades_sspace
+spades_links
+canu-pilon
+miniasm
+
+*/
+
+
 
 //inputFiles
 files = Channel.fromPath(params.pathFile)
@@ -8,45 +20,97 @@ files = Channel.fromPath(params.pathFile)
     .view()
 
 // Multiply input file channel
-files.into{ files1; files2; files3; files4; files5}
+files.into{files1; files2; files3; files4; files5}
 
-process assembly{
-    tag{data_id}
 
-    // Write spades output to folder
-    publishDir "${params.outFolder}/${data_id}/spades", mode: 'copy'
+// Create quality control plots for longreads
+/*
+TODO
+process nanoplot {
+    tag{id}
+}
+*/
 
+
+// Trim adapter sequences on long read nanopore files
+process porechop {
+    tag{id}
+        
     input:
-    set data_id, forward, reverse, longread from files1  
-
+    set id, sr1, sr2, lr from files1
+    
     output:
-    file("spades/scaffolds.fasta") into (spadesScaffolds1, spadesScaffolds2)
-    file("spades/contigs.fasta")
-
+    set id, sr1, sr2, file('lr_porechop.fastq') into files_porechop
+    
     script:
     """
-    ${SPADES} -t ${params.cpu} -m ${params.mem} \
-    --phred-offset 33 --careful \
-    --pe1-1 ${forward} \
-    --pe1-2 ${reverse} \
-    --nanopore ${longread} \
-    -o spades
+    $PORECHOP -i ${lr} -t ${params.cpu} -o lr_porechop.fastq
     """
 }
 
+// Quality filter long reads
+process filtlong {
+    tag{id}
+
+    input: 
+    set id, sr1, sr2, lr from files_porechop
+    
+    output:
+    set id, sr1, sr2, file("lr_filtlong.fastq") into files_filtlong
+    
+    script:
+    """
+    $FILTLONG -1 ${sr1} -2 ${sr2} \
+    --min_length 1000 \
+    --keep_percent 90 \
+    --target_bases  100000000 \
+    ${lr} > lr_filtlong.fastq
+    """
+    // Expected genome size: 5.3Mbp --> Limit to 100Mbp for approx 20x coverage
+}
+
+
+if (params.assembly == "spades_sspace" || params.assembly == "spades_links") {
+    
+    // Run SPADes assembly
+    process spades{
+        tag{data_id}
+
+        // Write spades output to folder
+        publishDir "${params.outFolder}/${data_id}/spades", mode: 'copy'
+
+        input:
+        set data_id, forward, reverse, longread from files_filtlong  
+
+        output:
+        set data_id, forward, reverse, longread, file("spades/scaffolds.fasta") into files_spades
+        file("spades/contigs.fasta")
+
+        script:
+        """
+        ${SPADES} -t ${params.cpu} -m ${params.mem} \
+        --phred-offset 33 --careful \
+        --pe1-1 ${forward} \
+        --pe1-2 ${reverse} \
+        --nanopore ${longread} \
+        -o spades
+        """
+    }
+}
+
+
 
 // Scaffold using SSPACE
-if(params.scaffolder == 'sspace'){
+if(params.assembly == 'spades_sspace'){
 
     process sspace_scaffolding{
         tag{data_id}
 
         input:
-        set data_id, forward, reverse, longread from files2  
-        file(scaffolds) from spadesScaffolds1
+        set data_id, forward, reverse, longread, scaffolds from files_spades  
 
         output:
-        file("sspace/scaffolds.fasta") into sspaceScaffolds
+        set data_id, forward, reverse, longread, file("sspace/scaffolds.fasta") into files_sspace 
 
         script:
         """
@@ -57,14 +121,15 @@ if(params.scaffolder == 'sspace'){
     process gapfiller{
        tag{data_id}
        
-       publishDir "${params.outFolder}/${data_id}/gapfiller", mode: 'copy' 
+       if (params.return_all) {
+           publishDir "${params.outFolder}/${data_id}/gapfiller", mode: 'copy' 
+       }
 
        input:
-       set data_id, forward, reverse, longread from files3
-       file(scaffolds) from sspaceScaffolds
-       
+       set data_id, forward, reverse, longread, scaffolds from files_sspace
+              
        output:
-       file("${data_id}_gapfiller.fasta") into finalScaffolds
+       set data_id, forward, reverse, longread, file("${data_id}_gapfiller.fasta") into files_assembled
 
        script:
        """
@@ -75,18 +140,19 @@ if(params.scaffolder == 'sspace'){
     }
 }
 
-if(params.scaffolder == 'links'){
+if(params.assembly == 'spades_links'){
     process links_scaffolding{
         tag{data_id}
         
-        publishDir "${params.outFolder}/${data_id}/links/", mode: 'copy'
+        if (params.return_all) {
+            publishDir "${params.outFolder}/${data_id}/links/", mode: 'copy'
+        }
 
         input:
-        set data_id, forward, reverse, longread from files4
-        file(scaffolds) from spadesScaffolds2
+        set data_id, forward, reverse, longread, scaffolds from files_spades
         
         output:
-        file("${data_id}_links.fasta") into finalScaffolds
+        set data_id, forward, reverse, longread, file("${data_id}_links.fasta") into files_assembled
 
         script:
         """
@@ -97,4 +163,81 @@ if(params.scaffolder == 'links'){
     }
 
 }
+
+if (params.assembly == "canu") {
+    
+    process canu_parameters {
+    
+        output: 
+        file('canu_settings.txt') into canu_settings
+
+        """
+        echo \
+        'genomeSize = $params.genome_size 
+        minReadLength=1000
+        maxMemory=$params.mem 
+        maxThread=$params.cpu' > canu_settings.txt
+        """
+    }
+
+    process canu{
+        tag{id}
+
+        input:
+        set id, sr1, sr2, lr from files_filtlong
+        
+        output: 
+        set id, sr1, sr2, lr, file("${id}.contigs.fasta") into files_canu
+        file("${id}.report")
+
+        script:
+        """
+        $CANU -s ${canu_settings} -p ${data_id} -nanopore-raw ${lr}
+        """
+    }
+}
+
+
+if (params.assembly == 'canu'){
+    
+    process pilon{
+        tag{id}
+
+        input:
+        set id, sr1, sr2, lr, contigs from files_canu
+
+        output:
+        set id, sr1, sr2, lr, file("after_polish.fasta") into files_assembled
+
+        script:
+        """
+        ${BOWTIE2} --local --very-sensitive-local -I 0 -X 2000 -x ${contigs} \
+        -1 ${sr1} -2 ${sr2} | samtools sort -o alignments.bam -T reads.tmp -;
+        samtools index alignments.bam
+
+        java -jar $PILON --genome ${contigs} --frags alignments.bam --changes \
+        --output after_polish --fix all
+        """
+
+    }
+}
+
+process write_output{
+    tag{data_id}
+    
+    publishDir "${params.outFolder}/${data_id}/final/", mode: 'copy'
+    
+    input:
+    set dataid, forward, reverse, longread, scaffold from files_assembled
+
+    output:
+    file("${data_id}_final.fa")
+
+    script:
+    """
+    mv ${scaffold} ${data_id}_final.fa    
+    """
+    
+}
+
 
