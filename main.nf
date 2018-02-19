@@ -222,22 +222,70 @@ if (params.assembly == 'canu'){
     }
 }
 
-process write_output{
-    tag{data_id}
-    
-    publishDir "${params.outFolder}/${data_id}/final/", mode: 'copy'
-    
+
+
+process contig_length {
+    // This script filters contigs by length (standard 200bp)
+    // and creates a plot of the read length distribution
+    // and writes the final fasta file to the disk
+    publishDir "${params.outFolder}/${id}_${params.assembly}/final/", mode: 'copy'
+
     input:
-    set dataid, forward, reverse, longread, scaffold from files_assembled
+    set id, sr1, sr2, lr, contigs from files_assembled
 
     output:
-    file("${data_id}_final.fa")
-
+    file("${id}_final.fasta")
+    file("${id}_contig_lengthDist.pdf")
+    
+    // Uses python2 
     script:
     """
-    mv ${scaffold} ${data_id}_final.fa    
-    """
+    #!/usr/bin/env python
+
+    import sys
+    import os
+    import numpy as np
+    from Bio import SeqIO
+    import pandas as pd
+    import matplotlib
+    matplotlib.use('Agg')
+    from matplotlib import pyplot as plt
+
+    long_contigs = []
+    input_handle=open('${contigs}', 'rU')
+    output_handle=open('${id}_final.fasta', 'w')
     
+    for record in SeqIO.parse(input_handle, 'fasta'):
+        if len(record.seq) >= 2000 :
+            long_contigs.append(record)
+    
+    
+    SeqIO.write(long_contigs, output_handle, "fasta")
+    
+    input_handle.close()
+    output_handle.close()
+
+    lengths = map(len, long_contigs)
+    
+    fig, ax = plt.subplots(figsize=(8, 3))
+    ax.plot(lengths, np.zeros_like(lengths)+1, 'bs')
+    
+    title = 'Contig lengths for ${id}'
+    ax.set_title(title)
+    ax.set_xscale('symlog')
+    ax.set_xlabel("Nucleotides")
+    ax.tick_params(
+        axis = 'y',
+        which = 'both',
+        left = 'off',
+        right = 'off',
+        labelleft = 'off'
+    )
+    ax.xaxis.grid(False)
+    fig.savefig("${id}_contig_lengthDist.pdf", format='pdf')
+    """
+
 }
+
 
 
