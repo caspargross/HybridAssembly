@@ -1,35 +1,30 @@
 #!/usr/bin/env/ nextflow
-params.assembly = 'spades_sspace'
+params.assembly = ''
 params.return_all = false 
+
 
 /* Pipeline paths:
 
 spades_sspace
 spades_links
-canu-pilon
-miniasm
+canu
+unicycler
 
 */
-
 
 
 //inputFiles
 files = Channel.fromPath(params.pathFile)
-    .ifEmpty {error "Cannot find file with path locations in ${params.files}"}\
+    .ifEmpty {error "Cannot find file with path locations in ${params.files}"
     .splitCsv(header: true)
     .view()
 
-// Multiply input file channel
-files.into{files1; files2; files3; files4; files5}
 
-
-// Create quality control plots for longreads
-/*
-TODO
-process nanoplot {
-    tag{id}
+// Validate assembly protocol choice:
+if !(params.assembly in ['spades_sspace', 'spades_links', 'canu' ]) 
+    exit1, "Invalid assembly protocol (${params.assembly}), please choose one of the follwing: \n 'spades_sspace', 'spades_links', 'canu'"
 }
-*/
+
 
 
 // Trim adapter sequences on long read nanopore files
@@ -37,7 +32,7 @@ process porechop {
     tag{id}
         
     input:
-    set id, sr1, sr2, lr from files1
+    set id, sr1, sr2, lr from files
     
     output:
     set id, sr1, sr2, file('lr_porechop.fastq') into files_porechop
@@ -164,7 +159,7 @@ if(params.assembly == 'spades_links'){
 
 }
 
-if (params.assembly == "canu") {
+if (params.assembly == 'canu') {
     
     process canu_parameters {
     
@@ -234,7 +229,7 @@ process contig_length {
     set id, sr1, sr2, lr, contigs from files_assembled
 
     output:
-    file("${id}_final.fasta")
+    set id, file("${id}_final.fasta") into filtered_contigs
     file("${id}_contig_lengthDist.pdf")
     
     // Uses python2 
@@ -288,4 +283,30 @@ process contig_length {
 }
 
 
+process align_reference{
+    
+    publishDir "${params.outFolder}/${data_id}_${params.assembly}/mummer/", mode: 'copy'
+    
+    input: 
+    set data_id, contigs from filtered_contigs
 
+    output:
+    file("${data_id}_mummerplot.ps")
+    file("${data_id}.dnadiff.report")
+    
+
+    script:
+    """
+    ${MUMMER}/dnadiff -p ${data_id}.dnadiff ${params.reference} ${contigs}
+    
+    ${MUMMER}/nucmer --mum -l 100 -c 150 -p ${data_id} ${params.reference} ${contigs}
+    ${MUMMER}/delta-filter -m ${data_id}.delta > ${data_id}.fdelta
+    ${MUMMER}/delta-filter -q ${data_id}.delta > ${data_id}.qdelta
+    ${MUMMER}/delta-filter -1 ${data_id}.delta > ${data_id}.1delta
+    ${MUMMER}/show-coords -lrcT ${data_id}.fdelta | sort -k13 -k1n -k2n > ${data_id}.coords
+    ${MUMMER}/show-tiling -c -l 1 -i 0 -V 0 ${data_id}.fdelta > ${data_id}.tiling
+    ${MUMMER}/show-snps -ClrTH ${data_id}.1delta > ${data_id}.snps
+    ${MUMMER}/mummerplot ${data_id}.qdelta -R ${params.reference} -Q ${contigs} -p ${data_id}_mummerplot --filter --layout -postscript
+
+    """
+}
