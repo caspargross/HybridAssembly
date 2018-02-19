@@ -15,14 +15,14 @@ unicycler
 
 //inputFiles
 files = Channel.fromPath(params.pathFile)
-    .ifEmpty {error "Cannot find file with path locations in ${params.files}"
+    .ifEmpty {error "Cannot find file with path locations in ${params.files}"}
     .splitCsv(header: true)
     .view()
 
 
 // Validate assembly protocol choice:
-if !(params.assembly in ['spades_sspace', 'spades_links', 'canu' ]) 
-    exit1, "Invalid assembly protocol (${params.assembly}), please choose one of the follwing: \n 'spades_sspace', 'spades_links', 'canu'"
+if (!(params.assembly in ['spades_sspace', 'spades_links', 'canu' ])){
+    exit 1, "Invalid assembly protocol (${params.assembly}), s', 'canu'"
 }
 
 
@@ -39,6 +39,7 @@ process porechop {
     
     script:
     """
+    echo ${sr1} ${lr}
     $PORECHOP -i ${lr} -t ${params.cpu} -o lr_porechop.fastq
     """
 }
