@@ -21,7 +21,7 @@ files = Channel.fromPath(params.pathFile)
 
 
 // Validate assembly protocol choice:
-if (!(params.assembly in ['spades_sspace', 'spades_links', 'canu' ])){
+if (!(params.assembly in ['spades_sspace', 'spades_links', 'canu', 'unicycler' ])){
     exit 1, "Invalid assembly protocol: (${params.assembly}) \nMust be one of the following:\n    'canu'\n    'spades_links'\n    'spades_sspace'\n    'unicycler'"
 }
 
@@ -87,6 +87,33 @@ process fastqc{
     """
 }
 
+if (params.assembly == 'unicycler') {
+
+    process unicycler{
+    tag{id}
+    publishDir "${params.outFolder}/${id}_${params.assembly}/unicycler", mode: 'copy'   
+   
+    input:
+    set id, sr1, sr2, lr from files_filtlong
+
+    output:
+    set id, sr1, sr2, lr, file("${id}/assembly.fasta") into files_assembled
+    file("${id}/*")
+
+    script:
+    """ 
+    python3 /mnt/users/ahgrosc1/tools/Unicycler/unicycler-runner.py \
+    -1 ${sr1} -2 ${sr2} -l ${lr}\
+    -o ${id} -t ${params.cpu}\
+    --spades_path ${SPADES}\
+    --racon_path ${RACON}
+    --pilon_path ${PILON}\
+    --bowtie2_build_path ${BOWTIE2_BUILD}\
+    --bowtie2_path ${BOWTIE2}\
+    --samtools_path ${SAMTOOLS}
+    """
+    }
+}
 
 
 if (params.assembly == "spades_sspace" || params.assembly == "spades_links") {
@@ -94,9 +121,6 @@ if (params.assembly == "spades_sspace" || params.assembly == "spades_links") {
     // Run SPADes assembly
     process spades{
         tag{data_id}
-
-        // Write spades output to folder
-        publishDir "${params.outFolder}/${data_id}/spades", mode: 'copy'
 
         input:
         set data_id, forward, reverse, longread from files_filtlong  
@@ -140,10 +164,6 @@ if(params.assembly == 'spades_sspace'){
     process gapfiller{
        tag{data_id}
        
-       if (params.return_all) {
-           publishDir "${params.outFolder}/${data_id}/gapfiller", mode: 'copy' 
-       }
-
        input:
        set data_id, forward, reverse, longread, scaffolds from files_sspace
               
@@ -164,10 +184,6 @@ if(params.assembly == 'spades_links'){
     process links_scaffolding{
         tag{data_id}
         
-        if (params.return_all) {
-            publishDir "${params.outFolder}/${data_id}/links/", mode: 'copy'
-        }
-
         input:
         set data_id, forward, reverse, longread, scaffolds from files_spades
         
@@ -250,13 +266,13 @@ process contig_length {
     // This script filters contigs by length (standard 200bp)
     // and creates a plot of the read length distribution
     // and writes the final fasta file to the disk
-    publishDir "${params.outFolder}/${id}_${params.assembly}/final/", mode: 'copy'
+    publishDir "${params.outFolder}/${id}_${params.assembly}/", mode: 'copy'
 
     input:
     set id, sr1, sr2, lr, contigs from files_assembled
 
     output:
-    set id, file("${id}_final.fasta") into filtered_contigs
+    set id, file("${id}_final.fasta") into analysis_mummer, analysis_quast
     file("${id}_contig_lengthDist.pdf")
     
     // Uses python2 
@@ -315,7 +331,7 @@ process align_reference{
     publishDir "${params.outFolder}/${data_id}_${params.assembly}/mummer/", mode: 'copy'
     
     input: 
-    set data_id, contigs from filtered_contigs
+    set data_id, contigs from analysis_mummer
 
     output:
     file("${data_id}_mummerplot.ps")
@@ -335,5 +351,22 @@ process align_reference{
     ${MUMMER}/show-snps -ClrTH ${data_id}.1delta > ${data_id}.snps
     ${MUMMER}/mummerplot ${data_id}.qdelta -R ${params.reference} -Q ${contigs} -p ${data_id}_mummerplot --filter --layout -postscript
 
+    """
+}
+
+process quast{
+    tag{id}
+    
+    publishDir "${params.outFolder}/${data_id}_${params.assembly}/quast/", mode: 'copy'
+
+    input: 
+    set id, assembly from analysis_quast
+
+    output:
+    file("quast/*")
+
+    script:
+    """
+    ${QUAST} ${assembly} -t ${params.cpu} -o quast -R ${params.reference}
     """
 }
