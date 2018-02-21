@@ -22,9 +22,8 @@ files = Channel.fromPath(params.pathFile)
 
 // Validate assembly protocol choice:
 if (!(params.assembly in ['spades_sspace', 'spades_links', 'canu' ])){
-    exit 1, "Invalid assembly protocol (${params.assembly}), s', 'canu'"
+    exit 1, "Invalid assembly protocol: (${params.assembly}) \nMust be one of the following:\n    'canu'\n    'spades_links'\n    'spades_sspace'\n    'unicycler'"
 }
-
 
 
 // Trim adapter sequences on long read nanopore files
@@ -39,10 +38,10 @@ process porechop {
     
     script:
     """
-    echo ${sr1} ${lr}
     $PORECHOP -i ${lr} -t ${params.cpu} -o lr_porechop.fastq
     """
 }
+
 
 // Quality filter long reads
 process filtlong {
@@ -52,7 +51,7 @@ process filtlong {
     set id, sr1, sr2, lr from files_porechop
     
     output:
-    set id, sr1, sr2, file("lr_filtlong.fastq") into files_filtlong
+    set id, sr1, sr2, file("lr_filtlong.fastq") into files_filtlong, files_fastqc
     
     script:
     """
@@ -64,6 +63,27 @@ process filtlong {
     """
     // Expected genome size: 5.3Mbp --> Limit to 100Mbp for approx 20x coverage
 }
+
+
+// Create FASTQC quality check on short reads
+process fastqc{
+    tag{id}
+    
+    publishDir "${params.outFolder}/${id}_${params.assembly}/fastQC/", mode: 'copy'
+
+    input: 
+    set id, sr1, sr2, lr from files_fastqc
+
+    output:
+    files("fastqc/*")
+
+    script: 
+    """
+    mkdir -p fastqc
+    ${FASTQC} sr1 sr2 -o fastqc
+    """
+}
+
 
 
 if (params.assembly == "spades_sspace" || params.assembly == "spades_links") {
@@ -136,6 +156,7 @@ if(params.assembly == 'spades_sspace'){
     }
 }
 
+
 if(params.assembly == 'spades_links'){
     process links_scaffolding{
         tag{data_id}
@@ -169,10 +190,10 @@ if (params.assembly == 'canu') {
 
         """
         echo \
-        'genomeSize = $params.genome_size 
+        'genomeSize=$params.genome_size 
         minReadLength=1000
         maxMemory=$params.mem 
-        maxThread=$params.cpu' > canu_settings.txt
+        maxThreads=$params.cpu' > canu_settings.txt
         """
     }
 
@@ -181,6 +202,7 @@ if (params.assembly == 'canu') {
 
         input:
         set id, sr1, sr2, lr from files_filtlong
+        file canu_settings
         
         output: 
         set id, sr1, sr2, lr, file("${id}.contigs.fasta") into files_canu
@@ -188,7 +210,7 @@ if (params.assembly == 'canu') {
 
         script:
         """
-        $CANU -s ${canu_settings} -p ${data_id} -nanopore-raw ${lr}
+        ${CANU} -s ${canu_settings} -p ${id} -nanopore-raw ${lr}
         """
     }
 }
