@@ -26,6 +26,7 @@ if (!(params.assembly in ['spades_sspace', 'spades_links', 'canu' ])){
 }
 
 
+
 // Trim adapter sequences on long read nanopore files
 process porechop {
     tag{id}
@@ -35,10 +36,12 @@ process porechop {
     
     output:
     set id, sr1, sr2, file('lr_porechop.fastq') into files_porechop
-    
+
+    // Join multiple longread files if possible 
     script:
     """
-    $PORECHOP -i ${lr} -t ${params.cpu} -o lr_porechop.fastq
+    cat ${lr} > nanoreads.fastq
+    $PORECHOP -i nanoreads.fastq -t ${params.cpu} -o lr_porechop.fastq
     """
 }
 
@@ -230,7 +233,8 @@ if (params.assembly == 'canu'){
         script:
         """
         ${BOWTIE2} --local --very-sensitive-local -I 0 -X 2000 -x ${contigs} \
-        -1 ${sr1} -2 ${sr2} | samtools sort -o alignments.bam -T reads.tmp -;
+        -1 ${sr1} -2 ${sr2} | samtools sort -o alignments.bam -T reads.tmp 
+        
         samtools index alignments.bam
 
         java -jar $PILON --genome ${contigs} --frags alignments.bam --changes \
