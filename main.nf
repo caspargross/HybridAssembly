@@ -106,7 +106,7 @@ if (params.assembly == 'unicycler') {
     -1 ${sr1} -2 ${sr2} -l ${lr}\
     -o ${id} -t ${params.cpu}\
     --spades_path ${SPADES}\
-    --racon_path ${RACON}
+    --racon_path ${RACON}\
     --pilon_path ${PILON}\
     --bowtie2_build_path ${BOWTIE2_BUILD}\
     --bowtie2_path ${BOWTIE2}\
@@ -247,8 +247,10 @@ if (params.assembly == 'canu'){
         set id, sr1, sr2, lr, file("after_polish.fasta") into files_assembled
 
         script:
-        """
-        ${BOWTIE2} --local --very-sensitive-local -I 0 -X 2000 -x ${contigs} \
+        $"""
+        ${BOWTIE2_BUILD} ${contigs} contigs_index.bt2 --threads ${params.cpu}
+
+        ${BOWTIE2} --local --very-sensitive-local -I 0 -X 2000 -x contigs_index.bt2 \
         -1 ${sr1} -2 ${sr2} | samtools sort -o alignments.bam -T reads.tmp 
         
         samtools index alignments.bam
