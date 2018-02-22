@@ -3,16 +3,6 @@ params.assembly = ''
 params.return_all = false 
 
 
-/* Pipeline paths:
-
-spades_sspace
-spades_links
-canu
-unicycler
-
-*/
-
-
 //inputFiles
 files = Channel.fromPath(params.pathFile)
     .ifEmpty {error "Cannot find file with path locations in ${params.files}"}
@@ -21,8 +11,8 @@ files = Channel.fromPath(params.pathFile)
 
 
 // Validate assembly protocol choice:
-if (!(params.assembly in ['spades_sspace', 'spades_links', 'canu', 'unicycler' ])){
-    exit 1, "Invalid assembly protocol: (${params.assembly}) \nMust be one of the following:\n    'canu'\n    'spades_links'\n    'spades_sspace'\n    'unicycler'"
+if (!(params.assembly in ['spades_sspace', 'spades_links', 'canu', 'unicycler', 'flye', 'miniasm', 'all'])){
+    exit 1, "Invalid assembly protocol: (${params.assembly}) \nMust be one of the following:\n    'canu'\n    'spades_links'\n    'spades_sspace'\n    'unicycler'\n    'miniasm'\n    'flye'\n    'all'"
 }
 
 
@@ -54,7 +44,7 @@ process filtlong {
     set id, sr1, sr2, lr from files_porechop
     
     output:
-    set id, sr1, sr2, file("lr_filtlong.fastq") into files_filtlong, files_fastqc
+    set id, sr1, sr2, file("lr_filtlong.fastq") into files_pre_unicycler, files_pre_spades, files_pre_canu, files_pre_miniasm, files_pre_flye,  files_fastqc
     
     script:
     """
@@ -87,17 +77,22 @@ process fastqc{
     """
 }
 
-if (params.assembly == 'unicycler') {
+/*
+* Unicycler - complete bacterial genome assembly pipeline
+*
+* 
+*/
+if (params.assembly in ['unicycler', 'all']) {
 
     process unicycler{
     tag{id}
     publishDir "${params.outFolder}/${id}_${params.assembly}/unicycler", mode: 'copy'   
    
     input:
-    set id, sr1, sr2, lr from files_filtlong
+    set id, sr1, sr2, lr from files_pre_unicycler
 
     output:
-    set id, sr1, sr2, lr, file("${id}/assembly.fasta") into files_assembled
+    set id, sr1, sr2, lr, file("${id}/assembly.fasta"), 'unicycler' into assembly_unicycler
     file("${id}/*")
 
     script:
@@ -115,18 +110,21 @@ if (params.assembly == 'unicycler') {
     }
 }
 
-
-if (params.assembly == "spades_sspace" || params.assembly == "spades_links") {
+/*
+* SPAades assembler
+*
+*
+*/
+if (params.assembly in ['spades_sspace','spades_links','all']) {
     
-    // Run SPADes assembly
     process spades{
         tag{data_id}
 
         input:
-        set data_id, forward, reverse, longread from files_filtlong  
+        set data_id, forward, reverse, longread from files_pre_spades  
 
         output:
-        set data_id, forward, reverse, longread, file("spades/scaffolds.fasta") into files_spades
+        set data_id, forward, reverse, longread, file("spades/scaffolds.fasta") into files_spades_sspace, files_spades_links
         file("spades/contigs.fasta")
 
         script:
@@ -142,15 +140,18 @@ if (params.assembly == "spades_sspace" || params.assembly == "spades_links") {
 }
 
 
-
-// Scaffold using SSPACE
-if(params.assembly == 'spades_sspace'){
+/*
+*  SSPACE scaffolder + Gapfiller
+*
+*
+*/
+if(params.assembly in ['spades_sspace','all']){
 
     process sspace_scaffolding{
         tag{data_id}
 
         input:
-        set data_id, forward, reverse, longread, scaffolds from files_spades  
+        set data_id, forward, reverse, longread, scaffolds from files_spades_sspace  
 
         output:
         set data_id, forward, reverse, longread, file("sspace/scaffolds.fasta") into files_sspace 
@@ -168,7 +169,7 @@ if(params.assembly == 'spades_sspace'){
        set data_id, forward, reverse, longread, scaffolds from files_sspace
               
        output:
-       set data_id, forward, reverse, longread, file("${data_id}_gapfiller.fasta") into files_assembled
+       set data_id, forward, reverse, longread, file("${data_id}_gapfiller.fasta"), 'spades_sspace' into assembly_gapfiller
 
        script:
        """
@@ -179,16 +180,21 @@ if(params.assembly == 'spades_sspace'){
     }
 }
 
-
-if(params.assembly == 'spades_links'){
+/*
+* Links scaffolder
+*
+*
+*/
+if(params.assembly in ['spades_links', 'all']){
+    
     process links_scaffolding{
         tag{data_id}
         
         input:
-        set data_id, forward, reverse, longread, scaffolds from files_spades
+        set data_id, forward, reverse, longread, scaffolds from files_spades_links
         
         output:
-        set data_id, forward, reverse, longread, file("${data_id}_links.fasta") into files_assembled
+        set data_id, forward, reverse, longread, file("${data_id}_links.fasta"), 'sspace_links' into assembly_links
 
         script:
         """
@@ -200,7 +206,12 @@ if(params.assembly == 'spades_links'){
 
 }
 
-if (params.assembly == 'canu') {
+/*
+*  Canu assembler
+*
+*
+*/
+if (params.assembly in ['canu','all']) {
     
     process canu_parameters {
     
@@ -218,13 +229,14 @@ if (params.assembly == 'canu') {
 
     process canu{
         tag{id}
+        publishDir "${params.outFolder}/${id}_${params.assembly}/canu", mode: 'copy'
 
         input:
-        set id, sr1, sr2, lr from files_filtlong
+        set id, sr1, sr2, lr from files_pre_canu
         file canu_settings
         
         output: 
-        set id, sr1, sr2, lr, file("${id}.contigs.fasta") into files_canu
+        set id, sr1, sr2, lr, file("${id}.contigs.fasta"), 'canu' into files_unpolished_canu
         file("${id}.report")
 
         script:
@@ -234,48 +246,122 @@ if (params.assembly == 'canu') {
     }
 }
 
-
-if (params.assembly == 'canu'){
+/*
+*  miniasm assembler
+*
+*
+*/
+if (params.assembly in ['miniasm', 'all']) {
     
-    process pilon{
+    process miniasm{
         tag{id}
+        publishDir "${params.outFolder}/${id}_${params.assembly}/miniasm", mode: 'copy'
 
         input:
-        set id, sr1, sr2, lr, contigs from files_canu
-
+        set id, sr1, sr2, lr from files_pre_miniasm
+        
         output:
-        set id, sr1, sr2, lr, file("after_polish.fasta") into files_assembled
+        set id, sr1, sr2, lr, file("miniasm_assembly.fasta") into files_noconsensus
 
         script:
-        $"""
-        ${BOWTIE2_BUILD} ${contigs} contigs_index.bt2 --threads ${params.cpu}
-
-        ${BOWTIE2} --local --very-sensitive-local -I 0 -X 2000 -x contigs_index.bt2 \
-        -1 ${sr1} -2 ${sr2} | samtools sort -o alignments.bam -T reads.tmp 
-        
-        samtools index alignments.bam
-
-        java -jar $PILON --genome ${contigs} --frags alignments.bam --changes \
-        --output after_polish --fix all
         """
-
+        ${MINIMAP2} -x ava-ont -t ${params.cpu} ${lr} ${lr} > ovlp.paf
+        ${MINIASM} -f ${lr} ovlp.paf > miniasm_assembly.gfa
+        awk '/^S/{print ">"\$2"\\n"\$3}' miniasm_assembly.gfa | fold > miniasm_assembly.gfa
+        """
     }
 }
 
+/*
+* racon consensus tool
+*
+*
+*/
+process racon {
+    tag{id}
+    publishDir "${params.outFolder}/${id}_${params.assembly}/racon", mode: 'copy'
+    
+    input:
+    set id, sr1, sr2, lr, assembly from files_noconsensus
 
+    output:
+    set id, sr1, sr2, lr, file("assembly_consensus.fasta"), 'miniasm' into files_unpolished_racon
+    file("assembly_consensus.fasta")
 
-process contig_length {
-    // This script filters contigs by length (standard 200bp)
-    // and creates a plot of the read length distribution
-    // and writes the final fasta file to the disk
+    script:
+    """
+    ${MINIMAP2} -x map-ont -t ${params.cpu} assembly ${lr} > assembly_map.paf
+    ${RACON} -t ${params.cpu} ${lr} assembly_map.paf ${assembly} assembly_consensus.fasta
+    """
+}
+
+/* 
+* Flye assembler (former ABruijn) 2018
+*  
+* De novo assembler for long and noisy reads. 
+* Uses an A-Bruijnm graph to find overlaps in non-errorcorrected long reads
+* Includes polisher module and repeat classification and analysis
+*/
+if (params.assembly in ['flye', 'all']) {
+    process flye {
+        tag{id}
+        publishDir "${params.outFolder}/${id}_${params.assembly}/racon", mode: 'copy'
+
+        input:
+        set id, sr1, sr2, lr from files_pre_flye
+
+        output:
+        set id, sr1, sr2, lr, file("flye/contigs.fast"), 'flye' into files_unpolished_flye
+
+        script:
+        """
+        ${FLYE} --nano-raw ${lr} --out-dir flye \
+        --genome-size ${params.genome_size} --threads ${params.cpu} -i 0
+        """
+    }
+}
+
+/*
+* Pilon polisher
+*
+*
+*/
+process pilon{
+    tag{id}
+
+    input:
+    set id, sr1, sr2, lr, contigs, var(type) from files_unpolished_canu, files_unpolished_racon, files_unpolished_flye
+
+    output:
+    set id, sr1, sr2, lr, file("after_polish.fasta"), type into assembly_pilon
+
+    script:
+    """
+    ${BOWTIE2_BUILD} ${contigs} contigs_index.bt2 
+
+    ${BOWTIE2} --local --very-sensitive-local -I 0 -X 2000 -x contigs_index.bt2 \
+    -1 ${sr1} -2 ${sr2} | samtools sort -o alignments.bam -T reads.tmp 
+    
+    samtools index alignments.bam
+
+    java -jar $PILON --genome ${contigs} --frags alignments.bam --changes \
+    --output after_polish --fix all
+    """
+}
+
+/*
+* Length filter trimming of contigs < 2000bp from the final assembly
+* Creates a plot of contig lenghts in the assembly
+*/
+process length_filter {
     publishDir "${params.outFolder}/${id}_${params.assembly}/", mode: 'copy'
 
     input:
-    set id, sr1, sr2, lr, contigs from files_assembled
+    set id, sr1, sr2, lr, contigs, type from assembly_gapfiller, assembly_links, assembly_unicycler, assembly_pilon
 
     output:
-    set id, file("${id}_final.fasta") into analysis_mummer, analysis_quast
-    file("${id}_contig_lengthDist.pdf")
+    set id, file("${id}_${type}_final.fasta"), type into analysis_mummer, analysis_quast
+    file("${id}_${type}_lengthDist.pdf")
     
     // Uses python2 
     script:
@@ -327,22 +413,25 @@ process contig_length {
 
 }
 
-
-process align_reference{
+/*
+* Aligns final contigs to reference genome using mummer
+* Generated dnadiff analysis results and mummerplot
+*/
+process mummer{
     
     publishDir "${params.outFolder}/${data_id}_${params.assembly}/mummer/", mode: 'copy'
     
     input: 
-    set data_id, contigs from analysis_mummer
+    set data_id, contigs, type from analysis_mummer
 
     output:
-    file("${data_id}_mummerplot.ps")
-    file("${data_id}.dnadiff.report")
+    file("${data_id}_${type}_mummerplot.ps")
+    file("${data_id}_${type}_dnadiff.txt")
     
 
     script:
     """
-    ${MUMMER}/dnadiff -p ${data_id}.dnadiff ${params.reference} ${contigs}
+    ${MUMMER}/dnadiff -p ${data_id}_${type}_dnadiff.txt ${params.reference} ${contigs}
     
     ${MUMMER}/nucmer --mum -l 100 -c 150 -p ${data_id} ${params.reference} ${contigs}
     ${MUMMER}/delta-filter -m ${data_id}.delta > ${data_id}.fdelta
@@ -351,24 +440,28 @@ process align_reference{
     ${MUMMER}/show-coords -lrcT ${data_id}.fdelta | sort -k13 -k1n -k2n > ${data_id}.coords
     ${MUMMER}/show-tiling -c -l 1 -i 0 -V 0 ${data_id}.fdelta > ${data_id}.tiling
     ${MUMMER}/show-snps -ClrTH ${data_id}.1delta > ${data_id}.snps
-    ${MUMMER}/mummerplot ${data_id}.qdelta -R ${params.reference} -Q ${contigs} -p ${data_id}_mummerplot --filter --layout -postscript
-
+    ${MUMMER}/mummerplot ${data_id}.qdelta -R ${params.reference} -Q ${contigs} -p ${data_id}_${type}_mummerplot --filter --layout -postscript
     """
 }
 
+/*
+*  Quast final process
+*
+*
+*/
 process quast{
     tag{id}
     
     publishDir "${params.outFolder}/${data_id}_${params.assembly}/quast/", mode: 'copy'
 
     input: 
-    set id, assembly from analysis_quast
+    set id, assembly, type from analysis_quast
 
     output:
-    file("quast/*")
+    file("quast_${type}/*")
 
     script:
     """
-    ${QUAST} ${assembly} -t ${params.cpu} -o quast -R ${params.reference}
+    ${QUAST} ${assembly} -t ${params.cpu} -o quast_${type} -R ${params.reference}
     """
 }
