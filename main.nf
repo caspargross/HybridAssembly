@@ -267,7 +267,7 @@ if (params.assembly in ['miniasm', 'all']) {
         """
         ${MINIMAP2} -x ava-ont -t ${params.cpu} ${lr} ${lr} > ovlp.paf
         ${MINIASM} -f ${lr} ovlp.paf > miniasm_assembly.gfa
-        awk '/^S/{print ">"\$2"\\n"\$3}' miniasm_assembly.gfa | fold > miniasm_assembly.gfa
+        awk '/^S/{print ">"\$2"\\n"\$3}' miniasm_assembly.gfa | fold > miniasm_assembly.fasta
         """
     }
 }
@@ -356,7 +356,6 @@ process pilon{
 // Merge channel output from different assembly paths
 assembly=Channel.create()
 assembly_merged = assembly.mix(assembly_gapfiller, assembly_links, assembly_unicycler, assembly_pilon)
-
 
 /*
 * Length filter trimming of contigs < 2000bp from the final assembly

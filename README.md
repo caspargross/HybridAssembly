@@ -9,3 +9,5 @@ Workflow:
     3) Gapfilling: 
     4) Alignment and variant calling using Mummer.
 
+
+![FlowDiagram](https://raw.githubusercontent.com/caspargross/hybridAssembly/master/FlowSchema.svg)
