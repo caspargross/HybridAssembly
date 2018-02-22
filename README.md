@@ -10,4 +10,5 @@ Workflow:
     4) Alignment and variant calling using Mummer.
 
 
-![FlowDiagram](https://raw.githubusercontent.com/caspargross/hybridAssembly/master/FlowSchema.svg)
+![FlowDiagram](.FlowSchema.svg)
+<img src="./controllers_brief.svg">
