@@ -321,6 +321,10 @@ if (params.assembly in ['flye', 'all']) {
     }
 }
 
+// Create channel for all unpolished files to be cleaned with Pilon
+files_unpolished = Channel.create()
+files_pilon = files_unpolished.mix(files_unpolished_canu, files_unpolished_racon, files_unpolished_flye)
+
 /*
 * Pilon polisher
 *
@@ -330,7 +334,7 @@ process pilon{
     tag{id}
 
     input:
-    set id, sr1, sr2, lr, contigs, type from files_unpolished_canu, files_unpolished_racon, files_unpolished_flye
+    set id, sr1, sr2, lr, contigs, type from files_pilon
 
     output:
     set id, sr1, sr2, lr, file("after_polish.fasta"), type into assembly_pilon
@@ -349,6 +353,11 @@ process pilon{
     """
 }
 
+// Merge channel output from different assembly paths
+assembly=Channel.create()
+assembly_merged = assembly.mix(assembly_gapfiller, assembly_links, assembly_unicycler, assembly_pilon)
+
+
 /*
 * Length filter trimming of contigs < 2000bp from the final assembly
 * Creates a plot of contig lenghts in the assembly
@@ -357,7 +366,7 @@ process length_filter {
     publishDir "${params.outFolder}/${id}_${params.assembly}/", mode: 'copy'
 
     input:
-    set id, sr1, sr2, lr, contigs, type from assembly_gapfiller, assembly_links, assembly_unicycler, assembly_pilon
+    set id, sr1, sr2, lr, contigs, type from assembly_merged
 
     output:
     set id, file("${id}_${type}_final.fasta"), type into analysis_mummer, analysis_quast
