@@ -330,7 +330,7 @@ process pilon{
     tag{id}
 
     input:
-    set id, sr1, sr2, lr, contigs, var(type) from files_unpolished_canu, files_unpolished_racon, files_unpolished_flye
+    set id, sr1, sr2, lr, contigs, type from files_unpolished_canu, files_unpolished_racon, files_unpolished_flye
 
     output:
     set id, sr1, sr2, lr, file("after_polish.fasta"), type into assembly_pilon
