@@ -26,7 +26,8 @@ process porechop {
     
     output:
     set id, sr1, sr2, file('lr_porechop.fastq') into files_porechop
-
+    set id, lr, val("raw") into files_nanoplot_raw
+    
     // Join multiple longread files if possible 
     script:
     """
@@ -45,7 +46,7 @@ process filtlong {
     
     output:
     set id, sr1, sr2, file("lr_filtlong.fastq") into files_pre_unicycler, files_pre_spades, files_pre_canu, files_pre_miniasm, files_pre_flye,  files_fastqc
-    
+    set id, file("lr_filtlong.fastq"), val('filtered') into files_nanoplot_filtered
     script:
     """
     $FILTLONG -1 ${sr1} -2 ${sr2} \
@@ -55,6 +56,25 @@ process filtlong {
     ${lr} > lr_filtlong.fastq
     """
     // Expected genome size: 5.3Mbp --> Limit to 100Mbp for approx 20x coverage
+}
+
+/*
+*  NanoPlot 
+*  plot read quality and read length distribution for ONT long reads
+*  Creates summary files with read characteristics.
+*/
+process nanoplot {
+    tag{id}
+
+    input:
+    set id, lr, type from files_nanoplot_raw .mix(files_nanoplot_filtered)
+
+    output:
+    file 'nanoplot/*'
+    script:
+    """
+    ${NANOPLOT} -t ${params.cpu} -p ${type} -o nanoplot --title ${id}_${type} -c darkblue --fastq ${lr}
+    """
 }
 
 
@@ -466,10 +486,10 @@ process quast{
     set id, assembly, type from analysis_quast
 
     output:
-    file("quast_${type}/*")
+    file "quast_${type}/*"
 
     script:
     """
-    ${QUAST} ${assembly} -t ${params.cpu} -o quast_${type} -R ${params.reference}
+    ${QUAST} ${assembly} -t ${params.cpu} -o quast_${type} -R ${params.reference} --labels ${id}_${type} --scaffolds --min-identity 85
     """
 }
