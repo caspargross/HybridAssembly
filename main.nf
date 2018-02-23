@@ -1,7 +1,8 @@
 #!/usr/bin/env/ nextflow
 params.assembly = ''
-params.return_all = false 
 
+// Target coverage for long reads before assembly
+params.cov = 50
 
 //inputFiles
 files = Channel.fromPath(params.pathFile)
@@ -52,7 +53,7 @@ process filtlong {
     $FILTLONG -1 ${sr1} -2 ${sr2} \
     --min_length 1000 \
     --keep_percent 90 \
-    --target_bases  100000000 \
+    --target_bases  \$(( ${params.cov * params.genome_size} )) \
     ${lr} > lr_filtlong.fastq
     """
     // Expected genome size: 5.3Mbp --> Limit to 100Mbp for approx 20x coverage
@@ -65,15 +66,17 @@ process filtlong {
 */
 process nanoplot {
     tag{id}
-
+    publishDir "${params.outFolder}/${id}_${params.assembly}/nanoplot/", mode: 'copy'
+    
     input:
     set id, lr, type from files_nanoplot_raw .mix(files_nanoplot_filtered)
 
     output:
-    file 'nanoplot/*'
+    file '*'
+    
     script:
     """
-    ${NANOPLOT} -t ${params.cpu} -p ${type} -o nanoplot --title ${id}_${type} -c darkblue --fastq ${lr}
+    ${NANOPLOT} -t ${params.cpu} -p ${type}_  --title ${id}_${type} -c darkblue --fastq ${lr}
     """
 }
 
@@ -174,7 +177,7 @@ if(params.assembly in ['spades_sspace','all']){
         set data_id, forward, reverse, longread, scaffolds from files_spades_sspace  
 
         output:
-        set data_id, forward, reverse, longread, file("sspace/scaffolds.fasta") into files_sspace 
+        set data_id, forward, reverse, longread, file("sspace/scaffolds.fasta"), val('spades_sspace') into files_sspace 
 
         script:
         """
@@ -182,22 +185,6 @@ if(params.assembly in ['spades_sspace','all']){
         """
     }
     
-    process gapfiller{
-       tag{data_id}
-       
-       input:
-       set data_id, forward, reverse, longread, scaffolds from files_sspace
-              
-       output:
-       set data_id, forward, reverse, longread, file("${data_id}_gapfiller.fasta"), val('spades_sspace') into assembly_gapfiller
-
-       script:
-       """
-       echo 'Lib1GF bowtie '${forward} ${reverse} '500 0.5 FR' > gapfill.lib
-       perl ${GAPFILLER} -l gapfill.lib -s ${scaffolds} -m 32 -t 10 -o 2 -r 0.7 -d 200 -n 10 -i 15 -g 0 -T 5 -b out
-       mv out/out.gapfilled.final.fa ${data_id}_gapfiller.fasta
-       """
-    }
 }
 
 /*
@@ -214,8 +201,8 @@ if(params.assembly in ['spades_links', 'all']){
         set data_id, forward, reverse, longread, scaffolds from files_spades_links
         
         output:
-        set data_id, forward, reverse, longread, file("${data_id}_links.fasta"), val('spades_links') into assembly_links
-
+        set data_id, forward, reverse, longread, file("${data_id}_links.fasta"), val('spades_links') into files_links
+        
         script:
         """
         echo ${longread} > longreads.txt
@@ -224,6 +211,26 @@ if(params.assembly in ['spades_links', 'all']){
         """
     }
 
+}
+
+
+
+
+process gapfiller{
+   tag{data_id}
+   
+   input:
+   set data_id, forward, reverse, longread, scaffolds, type from files_sspace .mix(files_links)
+          
+   output:
+   set data_id, forward, reverse, longread, file("${data_id}_gapfiller.fasta"), type into assembly_gapfiller
+
+   script:
+   """
+   echo 'Lib1GF bowtie '${forward} ${reverse} '500 0.5 FR' > gapfill.lib
+   perl ${GAPFILLER} -l gapfill.lib -s ${scaffolds} -m 32 -t 10 -o 2 -r 0.7 -d 200 -n 10 -i 15 -g 0 -T 5 -b out
+   mv out/out.gapfilled.final.fa ${data_id}_gapfiller.fasta
+   """
 }
 
 /*
@@ -375,7 +382,7 @@ process pilon{
 
 // Merge channel output from different assembly paths
 assembly=Channel.create()
-assembly_merged = assembly.mix(assembly_gapfiller, assembly_links, assembly_unicycler, assembly_pilon)
+assembly_merged = assembly.mix(assembly_gapfiller, assembly_unicycler, assembly_pilon)
 
 /*
 * Length filter trimming of contigs < 2000bp from the final assembly
