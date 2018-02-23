@@ -4,3 +4,4 @@
 .nextflow*
 file_locations.csv
 *.html
+*Report*
