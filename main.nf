@@ -12,8 +12,8 @@ files = Channel.fromPath(params.pathFile)
 
 
 // Validate assembly protocol choice:
-if (!(params.assembly in ['spades_sspace', 'spades_links', 'canu', 'unicycler', 'flye', 'miniasm', 'all'])){
-    exit 1, "Invalid assembly protocol: (${params.assembly}) \nMust be one of the following:\n    'canu'\n    'spades_links'\n    'spades_sspace'\n    'unicycler'\n    'miniasm'\n    'flye'\n    'all'"
+if (!(params.assembly in ['spades-sspace', 'spades-links', 'canu', 'unicycler', 'flye', 'miniasm', 'all'])){
+    exit 1, "Invalid assembly protocol: (${params.assembly}) \nMust be one of the following:\n    'canu'\n    'spades-links'\n    'spades-sspace'\n    'unicycler'\n    'miniasm'\n    'flye'\n    'all'"
 }
 
 
@@ -105,9 +105,7 @@ process fastqc{
 *
 * 
 */
-if (params.assembly in ['unicycler', 'all']) {
-
-    process unicycler{
+process unicycler{
     tag{id}
     publishDir "${params.outFolder}/${id}_${params.assembly}/unicycler", mode: 'copy'   
    
@@ -117,6 +115,9 @@ if (params.assembly in ['unicycler', 'all']) {
     output:
     set id, sr1, sr2, lr, file("${id}/assembly.fasta"), 'unicycler' into assembly_unicycler
     file("${id}/*")
+
+    when:
+    params.assembly in ['unicycler', 'all']
 
     script:
     """ 
@@ -130,7 +131,6 @@ if (params.assembly in ['unicycler', 'all']) {
     --bowtie2_path ${BOWTIE2}\
     --samtools_path ${SAMTOOLS}
     """
-    }
 }
 
 /*
@@ -138,83 +138,78 @@ if (params.assembly in ['unicycler', 'all']) {
 *
 *
 */
-if (params.assembly in ['spades_sspace','spades_links','all']) {
+process spades{
+    tag{data_id}
+
+    input:
+    set data_id, forward, reverse, longread from files_pre_spades  
+
+    output:
+    set data_id, forward, reverse, longread, file("spades/scaffolds.fasta") into files_spades-sspace, files_spades-links
+    file("spades/contigs.fasta")
+
+    when:
+    params.assembly in ['spades-sspace','spades-links','all']
     
-    process spades{
-        tag{data_id}
-
-        input:
-        set data_id, forward, reverse, longread from files_pre_spades  
-
-        output:
-        set data_id, forward, reverse, longread, file("spades/scaffolds.fasta") into files_spades_sspace, files_spades_links
-        file("spades/contigs.fasta")
-
-        script:
-        """
-        ${SPADES} -t ${params.cpu} -m ${params.mem} \
-        --phred-offset 33 --careful \
-        --pe1-1 ${forward} \
-        --pe1-2 ${reverse} \
-        --nanopore ${longread} \
-        -o spades
-        """
-    }
+    script:
+    """
+    ${SPADES} -t ${params.cpu} -m ${params.mem} \
+    --phred-offset 33 --careful \
+    --pe1-1 ${forward} \
+    --pe1-2 ${reverse} \
+    --nanopore ${longread} \
+    -o spades
+    """
 }
 
 
 /*
-*  SSPACE scaffolder + Gapfiller
+*  SSPACE scaffolder 
 *
 *
 */
-if(params.assembly in ['spades_sspace','all']){
+process sspace_scaffolding{
+    tag{data_id}
 
-    process sspace_scaffolding{
-        tag{data_id}
+    input:
+    set data_id, forward, reverse, longread, scaffolds from files_spades-sspace  
 
-        input:
-        set data_id, forward, reverse, longread, scaffolds from files_spades_sspace  
-
-        output:
-        set data_id, forward, reverse, longread, file("sspace/scaffolds.fasta"), val('spades_sspace') into files_sspace 
-
-        script:
-        """
-        perl ${SSPACE} -c ${scaffolds} -p ${longread} -b sspace -t ${params.cpu}
-        """
-    }
+    output:
+    set data_id, forward, reverse, longread, file("sspace/scaffolds.fasta"), val('spades-sspace') into files_sspace 
     
-}
+    when:
+    params.assembly in ['spades-sspace','all']
 
+    script:
+    """
+    perl ${SSPACE} -c ${scaffolds} -p ${longread} -b sspace -t ${params.cpu}
+    """
+}
+    
 /*
 * Links scaffolder
 *
 *
 */
-if(params.assembly in ['spades_links', 'all']){
+process links_scaffolding{
+    tag{data_id}
     
-    process links_scaffolding{
-        tag{data_id}
-        
-        input:
-        set data_id, forward, reverse, longread, scaffolds from files_spades_links
-        
-        output:
-        set data_id, forward, reverse, longread, file("${data_id}_links.fasta"), val('spades_links') into files_links
-        
-        script:
-        """
-        echo ${longread} > longreads.txt
-        perl ${LINKS} -f ${scaffolds} -s longreads.txt -b links
-        mv links.scaffolds.fa ${data_id}_links.fasta
-        """
-    }
+    input:
+    set data_id, forward, reverse, longread, scaffolds from files_spades-links
+    
+    output:
+    set data_id, forward, reverse, longread, file("${data_id}_links.fasta"), val('spades-links') into files_links
 
+    when:
+    params.assembly in ['spades-links', 'all']
+    
+    script:
+    """
+    echo ${longread} > longreads.txt
+    perl ${LINKS} -f ${scaffolds} -s longreads.txt -b links
+    mv links.scaffolds.fa ${data_id}_links.fasta
+    """
 }
-
-
-
 
 process gapfiller{
    tag{data_id}
@@ -238,39 +233,39 @@ process gapfiller{
 *
 *
 */
-if (params.assembly in ['canu','all']) {
+process canu_parameters {
+
+    output: 
+    file('canu_settings.txt') into canu_settings
+
+    """
+    echo \
+    'genomeSize=$params.genome_size 
+    minReadLength=1000
+    maxMemory=$params.mem 
+    maxThreads=$params.cpu' > canu_settings.txt
+    """
+}
+
+process canu{
+    tag{id}
+    publishDir "${params.outFolder}/${id}_${params.assembly}/canu", mode: 'copy'
+
+    input:
+    set id, sr1, sr2, lr from files_pre_canu
+    file canu_settings
     
-    process canu_parameters {
-    
-        output: 
-        file('canu_settings.txt') into canu_settings
+    output: 
+    set id, sr1, sr2, lr, file("${id}.contigs.fasta"), val('canu') into files_unpolished_canu
+    file("${id}.report")
 
-        """
-        echo \
-        'genomeSize=$params.genome_size 
-        minReadLength=1000
-        maxMemory=$params.mem 
-        maxThreads=$params.cpu' > canu_settings.txt
-        """
-    }
+    when:
+    params.assembly in ['canu','all']
 
-    process canu{
-        tag{id}
-        publishDir "${params.outFolder}/${id}_${params.assembly}/canu", mode: 'copy'
-
-        input:
-        set id, sr1, sr2, lr from files_pre_canu
-        file canu_settings
-        
-        output: 
-        set id, sr1, sr2, lr, file("${id}.contigs.fasta"), val('canu') into files_unpolished_canu
-        file("${id}.report")
-
-        script:
-        """
-        ${CANU} -s ${canu_settings} -p ${id} -nanopore-raw ${lr}
-        """
-    }
+    script:
+    """
+    ${CANU} -s ${canu_settings} -p ${id} -nanopore-raw ${lr}
+    """
 }
 
 /*
@@ -278,25 +273,25 @@ if (params.assembly in ['canu','all']) {
 *
 *
 */
-if (params.assembly in ['miniasm', 'all']) {
+process miniasm{
+    tag{id}
+    publishDir "${params.outFolder}/${id}_${params.assembly}/miniasm", mode: 'copy'
+
+    input:
+    set id, sr1, sr2, lr from files_pre_miniasm
     
-    process miniasm{
-        tag{id}
-        publishDir "${params.outFolder}/${id}_${params.assembly}/miniasm", mode: 'copy'
+    output:
+    set id, sr1, sr2, lr, file("miniasm_assembly.fasta") into files_noconsensus
 
-        input:
-        set id, sr1, sr2, lr from files_pre_miniasm
-        
-        output:
-        set id, sr1, sr2, lr, file("miniasm_assembly.fasta") into files_noconsensus
+    when:
+    params.assembly in ['miniasm', 'all']
 
-        script:
-        """
-        ${MINIMAP2} -x ava-ont -t ${params.cpu} ${lr} ${lr} > ovlp.paf
-        ${MINIASM} -f ${lr} ovlp.paf > miniasm_assembly.gfa
-        awk '/^S/{print ">"\$2"\\n"\$3}' miniasm_assembly.gfa | fold > miniasm_assembly.fasta
-        """
-    }
+    script:
+    """
+    ${MINIMAP2} -x ava-ont -t ${params.cpu} ${lr} ${lr} > ovlp.paf
+    ${MINIASM} -f ${lr} ovlp.paf > miniasm_assembly.gfa
+    awk '/^S/{print ">"\$2"\\n"\$3}' miniasm_assembly.gfa | fold > miniasm_assembly.fasta
+    """
 }
 
 /*
@@ -329,23 +324,25 @@ process racon {
 * Uses an A-Bruijnm graph to find overlaps in non-errorcorrected long reads
 * Includes polisher module and repeat classification and analysis
 */
-if (params.assembly in ['flye', 'all']) {
-    process flye {
-        tag{id}
-        publishDir "${params.outFolder}/${id}_${params.assembly}/racon", mode: 'copy'
+process flye {
+    tag{id}
+    publishDir "${params.outFolder}/${id}_${params.assembly}/racon", mode: 'copy'
 
-        input:
-        set id, sr1, sr2, lr from files_pre_flye
+    input:
+    set id, sr1, sr2, lr from files_pre_flye
 
-        output:
-        set id, sr1, sr2, lr, file("flye/scaffolds.fasta"), val('flye') into files_unpolished_flye
-        files("flye/*")
-        script:
-        """
-        ${FLYE} --nano-raw ${lr} --out-dir flye \
-        --genome-size ${params.genome_size} --threads ${params.cpu} -i 0
-        """
-    }
+    output:
+    set id, sr1, sr2, lr, file("flye/scaffolds.fasta"), val('flye') into files_unpolished_flye
+    files("flye/*")
+    
+    when:
+    params.assembly in ['flye', 'all']
+
+    script:
+    """
+    ${FLYE} --nano-raw ${lr} --out-dir flye \
+    --genome-size ${params.genome_size} --threads ${params.cpu} -i 0
+    """
 }
 
 // Create channel for all unpolished files to be cleaned with Pilon
