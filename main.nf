@@ -330,7 +330,7 @@ process racon {
 */
 process flye {
     tag{id}
-    publishDir "${params.outFolder}/${id}_${params.assembly}/racon", mode: 'copy'
+    publishDir "${params.outFolder}/${id}_${params.assembly}", mode: 'copy'
 
     input:
     set id, sr1, sr2, lr from files_pre_flye

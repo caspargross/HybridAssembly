@@ -22,11 +22,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta name="description" content="Nextflow workflow report for run id [compassionate_nightingale]">
+  <meta name="description" content="Nextflow workflow report for run id [adoring_almeida]">
   <meta name="author" content="Paolo Di Tommaso, Phil Ewels">
   <link rel="icon" type="image/png" href="https://www.nextflow.io/img/favicon.png" />
 
-  <title>[compassionate_nightingale] Nextflow Workflow Report</title>
+  <title>[adoring_almeida] Nextflow Workflow Report</title>
 
   <style type="text/css">
   /*!
@@ -122,7 +122,7 @@ table.DTCR_clonedTable.dataTable{position:absolute !important;background-color:r
         <li class="nav-item"><a class="nav-link" href="#tasks">Tasks</a></li>
       </ul>
       <span class="navbar-text">
-        [compassionate_nightingale]
+        [adoring_almeida]
       </span>
     </div>
   </nav>
@@ -131,98 +131,31 @@ table.DTCR_clonedTable.dataTable{position:absolute !important;background-color:r
     <div class="container">
 
       <h1 class="display-3">Nextflow workflow report</h1>
-      <h2 class="text-muted mb-4"><samp>[compassionate_nightingale]</samp> </h2>
+      <h2 class="text-muted mb-4"><samp>[adoring_almeida]</samp> </h2>
 
       
           <div class="alert alert-danger mb-4">
               <h4>Workflow execution completed unsuccessfully!</h4>
-              <p>The exit status of the task that caused the workflow execution to fail was: <code>0</code>.</p>
+              <p>The exit status of the task that caused the workflow execution to fail was: <code>null</code>.</p>
               <p>The full error message was:</p>
-              <pre>Error executing process > 'assembly (ESBL2048)'
-
-Caused by:
-  Missing output file(s) `scaffolds.fasta` expected by process `assembly (ESBL2048)`
-
-Command executed:
-
-  /mnt/share/opt/SPAdes-3.11.1-Linux/bin/spades.py -t 10 -m 100     --phred-offset 33 --careful     --pe1-1 /mnt/projects/external/Microbiome/Citrobacter/samples/Illumina/2016-07-20-IMP/ESBL2048_S2_L001_R1_001.fastq.gz     --pe1-2 /mnt/projects/external/Microbiome/Citrobacter/samples/Illumina/2016-07-20-IMP/ESBL2048_S2_L001_R2_001.fastq.gz     --nanopore /mnt/projects/external/Microbiome/Citrobacter/samples/Nanopore/2017_05/ESBL2048/FAF12748_ESBL2048_pass_best.fastq     -o spades
-
-Command exit status:
-  0
-
-Command output:
-  
-  
-  == Dataset description file was created: spades/mismatch_corrector/scaffolds/configs/corrector.info
-  
-  spades/mismatch_corrector/scaffolds/configs/log.properties  0:00:00.000     4M / 4M    INFO    General                 (main.cpp                  :  58)   Starting MismatchCorrector, built from N/A, git revision N/A
-    0:00:00.000     4M / 4M    INFO   DatasetProcessor         (dataset_processor.cpp     : 195)   Splitting assembly...
-    0:00:00.000     4M / 4M    INFO   DatasetProcessor         (dataset_processor.cpp     : 196)   Assembly file: spades/misc/assembled_scaffolds.fasta
-    0:00:00.070     4M / 36M   INFO   DatasetProcessor         (dataset_processor.cpp     : 203)   Processing paired sublib of number 0
-    0:00:00.070     4M / 36M   INFO   DatasetProcessor         (dataset_processor.cpp     : 206)   /mnt/projects/external/Microbiome/Citrobacter/samples/Illumina/2016-07-20-IMP/ESBL2048_S2_L001_R1_001.fastq.gz /mnt/projects/external/Microbiome/Citrobacter/samples/Illumina/2016-07-20-IMP/ESBL2048_S2_L001_R2_001.fastq.gz
-    0:00:00.071     4M / 36M   INFO   DatasetProcessor         (dataset_processor.cpp     : 140)   Running bwa index ...: /mnt/SRV018/share/opt/SPAdes-3.11.1-Linux/bin/bwa-spades index -a is spades/misc/assembled_scaffolds.fasta
-  [bwa_index] Pack FASTA... 0.03 sec
-  [bwa_index] Construct BWT for the packed sequence...
-  [bwa_index] 2.69 seconds elapse.
-  [bwa_index] Update BWT... 0.06 sec
-  [bwa_index] Pack forward-only FASTA... 0.04 sec
-  [bwa_index] Construct SA from BWT and Occ... 0.63 sec
-  [main] Version: 0.7.12-r1039
-  [main] CMD: /mnt/SRV018/share/opt/SPAdes-3.11.1-Linux/bin/bwa-spades index -a is spades/misc/assembled_scaffolds.fasta
-  [main] Real time: 3.492 sec; CPU: 3.452 sec
-    0:00:03.565     4M / 36M   INFO   DatasetProcessor         (dataset_processor.cpp     : 149)   Running bwa mem ...:/mnt/SRV018/share/opt/SPAdes-3.11.1-Linux/bin/bwa-spades mem  -v 1 -t 10 spades/misc/assembled_scaffolds.fasta /mnt/projects/external/Microbiome/Citrobacter/samples/Illumina/2016-07-20-IMP/ESBL2048_S2_L001_R1_001.fastq.gz /mnt/projects/external/Microbiome/Citrobacter/samples/Illumina/2016-07-20-IMP/ESBL2048_S2_L001_R2_001.fastq.gz  > spades/tmp/corrector_6VLf7P/lib0_xHaw7A/tmp.sam
-  [main] Version: 0.7.12-r1039
-  [main] CMD: /mnt/SRV018/share/opt/SPAdes-3.11.1-Linux/bin/bwa-spades mem -v 1 -t 10 spades/misc/assembled_scaffolds.fasta /mnt/projects/external/Microbiome/Citrobacter/samples/Illumina/2016-07-20-IMP/ESBL2048_S2_L001_R1_001.fastq.gz /mnt/projects/external/Microbiome/Citrobacter/samples/Illumina/2016-07-20-IMP/ESBL2048_S2_L001_R2_001.fastq.gz
-  [main] Real time: 56.059 sec; CPU: 543.872 sec
-    0:00:59.635     4M / 36M   INFO   DatasetProcessor         (dataset_processor.cpp     : 209)   Adding samfile spades/tmp/corrector_6VLf7P/lib0_xHaw7A/tmp.sam
-    0:01:06.914    76M / 76M   INFO   DatasetProcessor         (dataset_processor.cpp     : 105)   processed 1000000reads, flushing
-    0:01:14.081    76M / 76M   INFO   DatasetProcessor         (dataset_processor.cpp     : 105)   processed 2000000reads, flushing
-    0:01:20.692    76M / 76M   INFO   DatasetProcessor         (dataset_processor.cpp     : 105)   processed 3000000reads, flushing
-    0:01:27.043     8M / 76M   INFO   DatasetProcessor         (dataset_processor.cpp     : 235)   Processing contigs
-    0:01:32.800     1G / 1G    INFO   DatasetProcessor         (dataset_processor.cpp     : 251)   Contig NODE_3_length_90268_cov_50.563794 processed with 36 changes in thread 2
-    0:01:36.753     1G / 1G    INFO   DatasetProcessor         (dataset_processor.cpp     : 251)   Contig NODE_4_length_37510_cov_208.960062 processed with 0 changes in thread 3
-    0:02:22.696     1G / 1G    INFO   DatasetProcessor         (dataset_processor.cpp     : 251)   Contig NODE_2_length_682668_cov_79.022321 processed with 8 changes in thread 1
-    0:08:34.908     1G / 1G    INFO   DatasetProcessor         (dataset_processor.cpp     : 251)   Contig NODE_1_length_4471679_cov_84.909686 processed with 81 changes in thread 0
-    0:08:35.550    40M / 1G    INFO   DatasetProcessor         (dataset_processor.cpp     : 255)   Gluing processed contigs
-    0:08:35.641    40M / 1G    INFO    General                 (main.cpp                  :  71)   Correcting time: 0 hours 8 minutes 35 seconds
-  
-  ===== Mismatch correction finished.
-  
-   * Corrected reads are in spades/corrected/
-   * Assembled contigs are in spades/contigs.fasta
-   * Assembled scaffolds are in spades/scaffolds.fasta
-   * Assembly graph is in spades/assembly_graph.fastg
-   * Assembly graph in GFA format is in spades/assembly_graph_with_scaffolds.gfa
-   * Paths in the assembly graph corresponding to the contigs are in spades/contigs.paths
-   * Paths in the assembly graph corresponding to the scaffolds are in spades/scaffolds.paths
-  
-  ======= SPAdes pipeline finished.
-  
-  SPAdes log can be found here: spades/spades.log
-  
-  Thank you for using SPAdes!
-
-Work dir:
-  /mnt/SRV018/users/ahgrosc1/pipeline/hybridAssembly/work/16/f5f368d0a2abe07176e9080d831c86
-
-Tip: when you have fixed the problem you can continue the execution appending to the nextflow command line the option `-resume`</pre>
+              <pre>SIGINT</pre>
           </div>
           
 
       <dl>
         <dt>Run times</dt>
         <dd>
-          <span id="workflow_start">Tue Feb 06 11:43:13 CET 2018</span> - <span id="workflow_complete">Tue Feb 06 13:15:31 CET 2018</span>
-          (<span id="completed_fromnow"></span>duration: <strong>1h 32m 19s</strong>)
+          <span id="workflow_start">Fri Feb 23 18:41:38 CET 2018</span> - <span id="workflow_complete">Fri Feb 23 18:42:37 CET 2018</span>
+          (<span id="completed_fromnow"></span>duration: <strong>59.5s</strong>)
         </dd>
 
         <dt>Nextflow command</dt>
-        <dd><pre class="nfcommand"><code>nextflow run main.nf -with-report report.html</code></pre></dd>
+        <dd><pre class="nfcommand"><code>nextflow main.nf --assembly all -with-report allReport</code></pre></dd>
       </dl>
 
       <dl class="row small">
         <dt class="col-sm-3">CPU-Hours</dt>
-        <dd class="col-sm-9"><samp>1.5 (100% failed)</samp></dd>
+        <dd class="col-sm-9"><samp>(a few seconds)</samp></dd>
 
         <dt class="col-sm-3">Launch directory</dt>
         <dd class="col-sm-9"><samp>/mnt/SRV018/users/ahgrosc1/pipeline/hybridAssembly</samp></dd>
@@ -240,7 +173,7 @@ Tip: when you have fixed the problem you can continue the execution appending to
 
         
           <dt class="col-sm-3">Script ID</dt>
-          <dd class="col-sm-9"><code>7c951aecbcdc0a5254d6bff235081671</code></dd>
+          <dd class="col-sm-9"><code>1fbf679e06f65c4a68e1d393ff326e03</code></dd>
           
 
         
@@ -254,7 +187,7 @@ Tip: when you have fixed the problem you can continue the execution appending to
         <dd class="col-sm-9">version 0.27.2, build 4768 (23-01-2018 08:39 UTC)</dd>
 
         <dt class="col-sm-3">Session ID</dt>
-        <dd class="col-sm-9"><code>be51fc75-679c-424d-a578-ca6b1f1e318a</code></dd>
+        <dd class="col-sm-9"><code>7714877f-e548-4bf6-ab79-dd8393ed02ea</code></dd>
 
       </dl>
     </div>
@@ -1040,7 +973,7 @@ $(function() {
 
   // Nextflow report data
   window.data = { "trace": [
-{"task_id":"2","hash":"16\/f5f368","native_id":"40929","process":"assembly","module":"-","container":"-","tag":"ESBL2048","name":"assembly (ESBL2048)","status":"FAILED","exit":"0","submit":"1517913794067","start":"1517913794086","complete":"1517919331431","duration":"5537364","realtime":"5537265","%cpu":"1156.0","%mem":"2.4","rss":"6518898688","vmem":"9382330368","peak_rss":"6519001088","peak_vmem":"9383387136","rchar":"35786763165","wchar":"46679077977","syscr":"3510942","syscw":"2225996","read_bytes":"5189926912","write_bytes":"47205326848","attempt":"1","workdir":"\/mnt\/SRV018\/users\/ahgrosc1\/pipeline\/hybridAssembly\/work\/16\/f5f368d0a2abe07176e9080d831c86","script":"\n    \/mnt\/share\/opt\/SPAdes-3.11.1-Linux\/bin\/spades.py -t 10 -m 100     --phred-offset 33 --careful     --pe1-1 \/mnt\/projects\/external\/Microbiome\/Citrobacter\/samples\/Illumina\/2016-07-20-IMP\/ESBL2048_S2_L001_R1_001.fastq.gz     --pe1-2 \/mnt\/projects\/external\/Microbiome\/Citrobacter\/samples\/Illumina\/2016-07-20-IMP\/ESBL2048_S2_L001_R2_001.fastq.gz     --nanopore \/mnt\/projects\/external\/Microbiome\/Citrobacter\/samples\/Nanopore\/2017_05\/ESBL2048\/FAF12748_ESBL2048_pass_best.fastq     -o spades\n    ","scratch":"-","queue":"-","cpus":"1","memory":"-","disk":"-","time":"-","env":"SPADES=\/mnt\/share\/opt\/SPAdes-3.11.1-Linux\/bin\/spades.py\nSSPACE=\/mnt\/share\/opt\/SSPACE-STANDARD-3.0_linux-x86_64\/SSPACE_Standard_v3.0.pl\nGAPFILLER=\/mnt\/share\/opt\/GapFiller_v1-10_linux-x86_64\/GapFiller.pl\n","error_action":"TERMINATE"},{"task_id":"1","hash":"ac\/4abc9c","native_id":"9746","process":"assembly","module":"-","container":"-","tag":"ESBL1991","name":"assembly (ESBL1991)","status":"ABORTED","exit":"-","submit":"1517919331451","start":"0","complete":"-","duration":"-","realtime":"-","%cpu":"-","%mem":"-","rss":"-","vmem":"-","peak_rss":"-","peak_vmem":"-","rchar":"-","wchar":"-","syscr":"-","syscw":"-","read_bytes":"-","write_bytes":"-","attempt":"1","workdir":"\/mnt\/SRV018\/users\/ahgrosc1\/pipeline\/hybridAssembly\/work\/ac\/4abc9c0c8f4f54bea55993202f79ba","script":"\n    \/mnt\/share\/opt\/SPAdes-3.11.1-Linux\/bin\/spades.py -t 10 -m 100     --phred-offset 33 --careful     --pe1-1 \/mnt\/projects\/external\/Microbiome\/Citrobacter\/samples\/Illumina\/2014-07-09\/S11_S11_L001_R1_001.fastq.gz     --pe1-2 \/mnt\/projects\/external\/Microbiome\/Citrobacter\/samples\/Illumina\/2014-07-09\/S11_S11_L001_R2_001.fastq.gz     --nanopore \/mnt\/projects\/external\/Microbiome\/Citrobacter\/samples\/Nanopore\/2016_02\/ESBL1991\/Citrobacter_ESBL1991_pass.2D.fastq     -o spades\n    ","scratch":"-","queue":"-","cpus":"1","memory":"-","disk":"-","time":"-","env":"SPADES=\/mnt\/share\/opt\/SPAdes-3.11.1-Linux\/bin\/spades.py\nSSPACE=\/mnt\/share\/opt\/SSPACE-STANDARD-3.0_linux-x86_64\/SSPACE_Standard_v3.0.pl\nGAPFILLER=\/mnt\/share\/opt\/GapFiller_v1-10_linux-x86_64\/GapFiller.pl\n","error_action":"-"}]};
+{"task_id":"1","hash":"06\/5520d7","native_id":"21270","process":"porechop","module":"-","container":"-","tag":"ESBL1991","name":"porechop (ESBL1991)","status":"ABORTED","exit":"-","submit":"1519407699720","start":"1519407699744","complete":"-","duration":"-","realtime":"-","%cpu":"-","%mem":"-","rss":"-","vmem":"-","peak_rss":"-","peak_vmem":"-","rchar":"-","wchar":"-","syscr":"-","syscw":"-","read_bytes":"-","write_bytes":"-","attempt":"1","workdir":"\/mnt\/SRV018\/users\/ahgrosc1\/pipeline\/hybridAssembly\/work\/06\/5520d78ab69b00b0f0087a3151ae9f","script":"\n    cat \/mnt\/projects\/external\/Microbiome\/Citrobacter\/samples\/Nanopore\/2016_02\/ESBL1991\/FAA87539_ESBL1991_AA9709_fail_best.fastq \/mnt\/projects\/external\/Microbiome\/Citrobacter\/samples\/Nanopore\/2016_02\/ESBL1991\/FAA87539_ESBL1991_AA9709_pass_best.fastq > nanoreads.fastq\n    \/mnt\/users\/ahgrosc1\/tools\/Porechop\/porechop-runner.py -i nanoreads.fastq -t 10 -o lr_porechop.fastq\n    ","scratch":"-","queue":"-","cpus":"1","memory":"-","disk":"-","time":"-","env":"SPADES=\/mnt\/share\/opt\/SPAdes-3.11.1-Linux\/bin\/spades.py\nSSPACE=\/mnt\/users\/ahgrosc1\/tools\/SSPACE-LongRead_v1-1\/SSPACE-LongRead.pl\nGAPFILLER=\/mnt\/share\/opt\/GapFiller_v1-10_linux-x86_64\/GapFiller.pl\nLINKS=\/mnt\/users\/ahgrosc1\/tools\/links_v1.8.5\/LINKS.pl\nCANU=\/mnt\/users\/ahgrosc1\/tools\/canu-1.6\/Linux-amd64\/bin\/canu\nMUMMER=\/mnt\/users\/ahgrosc1\/tools\/mummer\/bin\nPORECHOP=\/mnt\/users\/ahgrosc1\/tools\/Porechop\/porechop-runner.py\nFILTLONG=\/mnt\/users\/ahgrosc1\/tools\/Filtlong\/bin\/filtlong\nBOWTIE2=\/mnt\/share\/opt\/bowtie2-2.2.4\/bowtie2\nBOWTIE2_BUILD=\/mnt\/share\/opt\/bowtie2-2.2.4\/bowtie2-build\nPILON=\/mnt\/users\/ahgrosc1\/tools\/pilon-1.22.jar\nPAUVRE=pauvre\nFASTQC=\/mnt\/users\/ahgrosc1\/tools\/FastQC\/fastqc\nMULTIQC=source activate multiqc && multiqc\nQUAST=source activate quast && quast\nRACON=\/mnt\/users\/ahgrosc1\/tools\/racon\/bin\/racon\nSAMTOOLS=\/mnt\/share\/opt\/samtools-1.5\/samtools\nMINIASM=\/mnt\/users\/ahgrosc1\/tools\/miniasm\/miniasm\nMINIMAP2=\/mnt\/users\/ahgrosc1\/tools\/minimap2-2.7_x64-linux\/minimap2\nFLYE=\/mnt\/users\/ahgrosc1\/tools\/Flye\/bin\/flye\nNANOPLOT=source activate nanoplot && NanoPlot\n","error_action":"-"},{"task_id":"2","hash":"34\/4f255d","native_id":"21289","process":"porechop","module":"-","container":"-","tag":"ESBL2048","name":"porechop (ESBL2048)","status":"ABORTED","exit":"-","submit":"1519407699735","start":"1519407699746","complete":"-","duration":"-","realtime":"-","%cpu":"-","%mem":"-","rss":"-","vmem":"-","peak_rss":"-","peak_vmem":"-","rchar":"-","wchar":"-","syscr":"-","syscw":"-","read_bytes":"-","write_bytes":"-","attempt":"1","workdir":"\/mnt\/SRV018\/users\/ahgrosc1\/pipeline\/hybridAssembly\/work\/34\/4f255d88eaf2484850c05cd1abd76c","script":"\n    cat \/mnt\/projects\/external\/Microbiome\/Citrobacter\/samples\/Nanopore\/2017_05\/ESBL2048\/FAF12748_ESBL2048_pass_best.fastq > nanoreads.fastq\n    \/mnt\/users\/ahgrosc1\/tools\/Porechop\/porechop-runner.py -i nanoreads.fastq -t 10 -o lr_porechop.fastq\n    ","scratch":"-","queue":"-","cpus":"1","memory":"-","disk":"-","time":"-","env":"SPADES=\/mnt\/share\/opt\/SPAdes-3.11.1-Linux\/bin\/spades.py\nSSPACE=\/mnt\/users\/ahgrosc1\/tools\/SSPACE-LongRead_v1-1\/SSPACE-LongRead.pl\nGAPFILLER=\/mnt\/share\/opt\/GapFiller_v1-10_linux-x86_64\/GapFiller.pl\nLINKS=\/mnt\/users\/ahgrosc1\/tools\/links_v1.8.5\/LINKS.pl\nCANU=\/mnt\/users\/ahgrosc1\/tools\/canu-1.6\/Linux-amd64\/bin\/canu\nMUMMER=\/mnt\/users\/ahgrosc1\/tools\/mummer\/bin\nPORECHOP=\/mnt\/users\/ahgrosc1\/tools\/Porechop\/porechop-runner.py\nFILTLONG=\/mnt\/users\/ahgrosc1\/tools\/Filtlong\/bin\/filtlong\nBOWTIE2=\/mnt\/share\/opt\/bowtie2-2.2.4\/bowtie2\nBOWTIE2_BUILD=\/mnt\/share\/opt\/bowtie2-2.2.4\/bowtie2-build\nPILON=\/mnt\/users\/ahgrosc1\/tools\/pilon-1.22.jar\nPAUVRE=pauvre\nFASTQC=\/mnt\/users\/ahgrosc1\/tools\/FastQC\/fastqc\nMULTIQC=source activate multiqc && multiqc\nQUAST=source activate quast && quast\nRACON=\/mnt\/users\/ahgrosc1\/tools\/racon\/bin\/racon\nSAMTOOLS=\/mnt\/share\/opt\/samtools-1.5\/samtools\nMINIASM=\/mnt\/users\/ahgrosc1\/tools\/miniasm\/miniasm\nMINIMAP2=\/mnt\/users\/ahgrosc1\/tools\/minimap2-2.7_x64-linux\/minimap2\nFLYE=\/mnt\/users\/ahgrosc1\/tools\/Flye\/bin\/flye\nNANOPLOT=source activate nanoplot && NanoPlot\n","error_action":"-"},{"task_id":"4","hash":"eb\/7c122d","native_id":"21298","process":"porechop","module":"-","container":"-","tag":"ESBL2563","name":"porechop (ESBL2563)","status":"ABORTED","exit":"-","submit":"1519407699741","start":"1519407699749","complete":"-","duration":"-","realtime":"-","%cpu":"-","%mem":"-","rss":"-","vmem":"-","peak_rss":"-","peak_vmem":"-","rchar":"-","wchar":"-","syscr":"-","syscw":"-","read_bytes":"-","write_bytes":"-","attempt":"1","workdir":"\/mnt\/SRV018\/users\/ahgrosc1\/pipeline\/hybridAssembly\/work\/eb\/7c122d5e1c432c3e923d88d4141de7","script":"\n    cat \/mnt\/projects\/external\/Microbiome\/Citrobacter\/samples\/Nanopore\/2017_03\/ESBL2563\/FAF12690_ESBL2563_pass_best.fastq > nanoreads.fastq\n    \/mnt\/users\/ahgrosc1\/tools\/Porechop\/porechop-runner.py -i nanoreads.fastq -t 10 -o lr_porechop.fastq\n    ","scratch":"-","queue":"-","cpus":"1","memory":"-","disk":"-","time":"-","env":"SPADES=\/mnt\/share\/opt\/SPAdes-3.11.1-Linux\/bin\/spades.py\nSSPACE=\/mnt\/users\/ahgrosc1\/tools\/SSPACE-LongRead_v1-1\/SSPACE-LongRead.pl\nGAPFILLER=\/mnt\/share\/opt\/GapFiller_v1-10_linux-x86_64\/GapFiller.pl\nLINKS=\/mnt\/users\/ahgrosc1\/tools\/links_v1.8.5\/LINKS.pl\nCANU=\/mnt\/users\/ahgrosc1\/tools\/canu-1.6\/Linux-amd64\/bin\/canu\nMUMMER=\/mnt\/users\/ahgrosc1\/tools\/mummer\/bin\nPORECHOP=\/mnt\/users\/ahgrosc1\/tools\/Porechop\/porechop-runner.py\nFILTLONG=\/mnt\/users\/ahgrosc1\/tools\/Filtlong\/bin\/filtlong\nBOWTIE2=\/mnt\/share\/opt\/bowtie2-2.2.4\/bowtie2\nBOWTIE2_BUILD=\/mnt\/share\/opt\/bowtie2-2.2.4\/bowtie2-build\nPILON=\/mnt\/users\/ahgrosc1\/tools\/pilon-1.22.jar\nPAUVRE=pauvre\nFASTQC=\/mnt\/users\/ahgrosc1\/tools\/FastQC\/fastqc\nMULTIQC=source activate multiqc && multiqc\nQUAST=source activate quast && quast\nRACON=\/mnt\/users\/ahgrosc1\/tools\/racon\/bin\/racon\nSAMTOOLS=\/mnt\/share\/opt\/samtools-1.5\/samtools\nMINIASM=\/mnt\/users\/ahgrosc1\/tools\/miniasm\/miniasm\nMINIMAP2=\/mnt\/users\/ahgrosc1\/tools\/minimap2-2.7_x64-linux\/minimap2\nFLYE=\/mnt\/users\/ahgrosc1\/tools\/Flye\/bin\/flye\nNANOPLOT=source activate nanoplot && NanoPlot\n","error_action":"-"},{"task_id":"3","hash":"2c\/25b423","native_id":"21308","process":"porechop","module":"-","container":"-","tag":"ESBL2274","name":"porechop (ESBL2274)","status":"ABORTED","exit":"-","submit":"1519407699746","start":"1519407699843","complete":"-","duration":"-","realtime":"-","%cpu":"-","%mem":"-","rss":"-","vmem":"-","peak_rss":"-","peak_vmem":"-","rchar":"-","wchar":"-","syscr":"-","syscw":"-","read_bytes":"-","write_bytes":"-","attempt":"1","workdir":"\/mnt\/SRV018\/users\/ahgrosc1\/pipeline\/hybridAssembly\/work\/2c\/25b423d82927c03db9baaa0535a34c","script":"\n    cat \/mnt\/projects\/external\/Microbiome\/Citrobacter\/samples\/Nanopore\/2017_05\/ESBL2274\/FAF12810_ESBL2274_pass_best.fastq > nanoreads.fastq\n    \/mnt\/users\/ahgrosc1\/tools\/Porechop\/porechop-runner.py -i nanoreads.fastq -t 10 -o lr_porechop.fastq\n    ","scratch":"-","queue":"-","cpus":"1","memory":"-","disk":"-","time":"-","env":"SPADES=\/mnt\/share\/opt\/SPAdes-3.11.1-Linux\/bin\/spades.py\nSSPACE=\/mnt\/users\/ahgrosc1\/tools\/SSPACE-LongRead_v1-1\/SSPACE-LongRead.pl\nGAPFILLER=\/mnt\/share\/opt\/GapFiller_v1-10_linux-x86_64\/GapFiller.pl\nLINKS=\/mnt\/users\/ahgrosc1\/tools\/links_v1.8.5\/LINKS.pl\nCANU=\/mnt\/users\/ahgrosc1\/tools\/canu-1.6\/Linux-amd64\/bin\/canu\nMUMMER=\/mnt\/users\/ahgrosc1\/tools\/mummer\/bin\nPORECHOP=\/mnt\/users\/ahgrosc1\/tools\/Porechop\/porechop-runner.py\nFILTLONG=\/mnt\/users\/ahgrosc1\/tools\/Filtlong\/bin\/filtlong\nBOWTIE2=\/mnt\/share\/opt\/bowtie2-2.2.4\/bowtie2\nBOWTIE2_BUILD=\/mnt\/share\/opt\/bowtie2-2.2.4\/bowtie2-build\nPILON=\/mnt\/users\/ahgrosc1\/tools\/pilon-1.22.jar\nPAUVRE=pauvre\nFASTQC=\/mnt\/users\/ahgrosc1\/tools\/FastQC\/fastqc\nMULTIQC=source activate multiqc && multiqc\nQUAST=source activate quast && quast\nRACON=\/mnt\/users\/ahgrosc1\/tools\/racon\/bin\/racon\nSAMTOOLS=\/mnt\/share\/opt\/samtools-1.5\/samtools\nMINIASM=\/mnt\/users\/ahgrosc1\/tools\/miniasm\/miniasm\nMINIMAP2=\/mnt\/users\/ahgrosc1\/tools\/minimap2-2.7_x64-linux\/minimap2\nFLYE=\/mnt\/users\/ahgrosc1\/tools\/Flye\/bin\/flye\nNANOPLOT=source activate nanoplot && NanoPlot\n","error_action":"-"}]};
 
   </script>
 
