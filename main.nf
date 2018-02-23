@@ -169,7 +169,7 @@ if(params.assembly in ['spades_sspace','all']){
        set data_id, forward, reverse, longread, scaffolds from files_sspace
               
        output:
-       set data_id, forward, reverse, longread, file("${data_id}_gapfiller.fasta"), 'spades_sspace' into assembly_gapfiller
+       set data_id, forward, reverse, longread, file("${data_id}_gapfiller.fasta"), val('spades_sspace') into assembly_gapfiller
 
        script:
        """
@@ -194,7 +194,7 @@ if(params.assembly in ['spades_links', 'all']){
         set data_id, forward, reverse, longread, scaffolds from files_spades_links
         
         output:
-        set data_id, forward, reverse, longread, file("${data_id}_links.fasta"), 'sspace_links' into assembly_links
+        set data_id, forward, reverse, longread, file("${data_id}_links.fasta"), val('spades_links') into assembly_links
 
         script:
         """
@@ -236,7 +236,7 @@ if (params.assembly in ['canu','all']) {
         file canu_settings
         
         output: 
-        set id, sr1, sr2, lr, file("${id}.contigs.fasta"), 'canu' into files_unpolished_canu
+        set id, sr1, sr2, lr, file("${id}.contigs.fasta"), val('canu') into files_unpolished_canu
         file("${id}.report")
 
         script:
@@ -285,12 +285,12 @@ process racon {
     set id, sr1, sr2, lr, assembly from files_noconsensus
 
     output:
-    set id, sr1, sr2, lr, file("assembly_consensus.fasta"), 'miniasm' into files_unpolished_racon
+    set id, sr1, sr2, lr, file("assembly_consensus.fasta"), val("miniasm") into files_unpolished_racon
     file("assembly_consensus.fasta")
 
     script:
     """
-    ${MINIMAP2} -x map-ont -t ${params.cpu} assembly ${lr} > assembly_map.paf
+    ${MINIMAP2} -x map-ont -t ${params.cpu} ${assembly} ${lr} > assembly_map.paf
     ${RACON} -t ${params.cpu} ${lr} assembly_map.paf ${assembly} assembly_consensus.fasta
     """
 }
@@ -311,8 +311,8 @@ if (params.assembly in ['flye', 'all']) {
         set id, sr1, sr2, lr from files_pre_flye
 
         output:
-        set id, sr1, sr2, lr, file("flye/contigs.fast"), 'flye' into files_unpolished_flye
-
+        set id, sr1, sr2, lr, file("flye/scaffolds.fasta"), val('flye') into files_unpolished_flye
+        files("flye/*")
         script:
         """
         ${FLYE} --nano-raw ${lr} --out-dir flye \
@@ -344,9 +344,9 @@ process pilon{
     ${BOWTIE2_BUILD} ${contigs} contigs_index.bt2 
 
     ${BOWTIE2} --local --very-sensitive-local -I 0 -X 2000 -x contigs_index.bt2 \
-    -1 ${sr1} -2 ${sr2} | samtools sort -o alignments.bam -T reads.tmp 
+    -1 ${sr1} -2 ${sr2} | ${SAMTOOLS} sort -o alignments.bam -T reads.tmp 
     
-    samtools index alignments.bam
+    ${SAMTOOLS} index alignments.bam
 
     java -jar $PILON --genome ${contigs} --frags alignments.bam --changes \
     --output after_polish --fix all
@@ -387,7 +387,7 @@ process length_filter {
 
     long_contigs = []
     input_handle=open('${contigs}', 'rU')
-    output_handle=open('${id}_final.fasta', 'w')
+    output_handle=open('${id}_${type}_final.fasta', 'w')
     
     for record in SeqIO.parse(input_handle, 'fasta'):
         if len(record.seq) >= 2000 :
@@ -399,10 +399,10 @@ process length_filter {
     input_handle.close()
     output_handle.close()
 
-    lengths = map(len, long_contigs)
+    lengths = list(map(len, long_contigs))
     
     fig, ax = plt.subplots(figsize=(8, 3))
-    ax.plot(lengths, np.zeros_like(lengths)+1, 'bs')
+    ax.plot(lengths, np.repeat(1, len(lengths)),'bs')
     
     title = 'Contig lengths for ${id}'
     ax.set_title(title)
@@ -416,7 +416,7 @@ process length_filter {
         labelleft = 'off'
     )
     ax.xaxis.grid(False)
-    fig.savefig("${id}_contig_lengthDist.pdf", format='pdf')
+    fig.savefig("${id}_${type}_lengthDist.pdf", format='pdf')
     """
 
 }
@@ -426,7 +426,7 @@ process length_filter {
 * Generated dnadiff analysis results and mummerplot
 */
 process mummer{
-    
+    tag{data_id} 
     publishDir "${params.outFolder}/${data_id}_${params.assembly}/mummer/", mode: 'copy'
     
     input: 
@@ -434,12 +434,12 @@ process mummer{
 
     output:
     file("${data_id}_${type}_mummerplot.ps")
-    file("${data_id}_${type}_dnadiff.txt")
+    file("${data_id}_${type}_dnadiff.report")
     
 
     script:
     """
-    ${MUMMER}/dnadiff -p ${data_id}_${type}_dnadiff.txt ${params.reference} ${contigs}
+    ${MUMMER}/dnadiff -p ${data_id}_${type}_dnadiff ${params.reference} ${contigs}
     
     ${MUMMER}/nucmer --mum -l 100 -c 150 -p ${data_id} ${params.reference} ${contigs}
     ${MUMMER}/delta-filter -m ${data_id}.delta > ${data_id}.fdelta
