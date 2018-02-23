@@ -3,6 +3,7 @@ params.assembly = ''
 
 // Target coverage for long reads before assembly
 params.cov = 50
+targetLength = params.cov * params.genome_size
 
 //inputFiles
 files = Channel.fromPath(params.pathFile)
@@ -12,8 +13,8 @@ files = Channel.fromPath(params.pathFile)
 
 
 // Validate assembly protocol choice:
-if (!(params.assembly in ['spades-sspace', 'spades-links', 'canu', 'unicycler', 'flye', 'miniasm', 'all'])){
-    exit 1, "Invalid assembly protocol: (${params.assembly}) \nMust be one of the following:\n    'canu'\n    'spades-links'\n    'spades-sspace'\n    'unicycler'\n    'miniasm'\n    'flye'\n    'all'"
+if (!(params.assembly in ['spades_sspace', 'spades_links', 'canu', 'unicycler', 'flye', 'miniasm', 'all'])){
+    exit 1, "Invalid assembly protocol: (${params.assembly}) \nMust be one of the following:\n    'canu'\n    'spades_links'\n    'spades_sspace'\n    'unicycler'\n    'miniasm'\n    'flye'\n    'all'"
 }
 
 
@@ -48,12 +49,15 @@ process filtlong {
     output:
     set id, sr1, sr2, file("lr_filtlong.fastq") into files_pre_unicycler, files_pre_spades, files_pre_canu, files_pre_miniasm, files_pre_flye,  files_fastqc
     set id, file("lr_filtlong.fastq"), val('filtered') into files_nanoplot_filtered
+    
+    
+    
     script:
     """
     $FILTLONG -1 ${sr1} -2 ${sr2} \
     --min_length 1000 \
     --keep_percent 90 \
-    --target_bases  \$(( ${params.cov * params.genome_size} )) \
+    --target_bases  ${targetLength} \
     ${lr} > lr_filtlong.fastq
     """
     // Expected genome size: 5.3Mbp --> Limit to 100Mbp for approx 20x coverage
@@ -145,11 +149,11 @@ process spades{
     set data_id, forward, reverse, longread from files_pre_spades  
 
     output:
-    set data_id, forward, reverse, longread, file("spades/scaffolds.fasta") into files_spades-sspace, files_spades-links
+    set data_id, forward, reverse, longread, file("spades/scaffolds.fasta") into files_spades_sspace, files_spades_links
     file("spades/contigs.fasta")
 
     when:
-    params.assembly in ['spades-sspace','spades-links','all']
+    params.assembly in ['spades_sspace','spades_links','all']
     
     script:
     """
@@ -172,13 +176,13 @@ process sspace_scaffolding{
     tag{data_id}
 
     input:
-    set data_id, forward, reverse, longread, scaffolds from files_spades-sspace  
+    set data_id, forward, reverse, longread, scaffolds from files_spades_sspace  
 
     output:
-    set data_id, forward, reverse, longread, file("sspace/scaffolds.fasta"), val('spades-sspace') into files_sspace 
+    set data_id, forward, reverse, longread, file("sspace/scaffolds.fasta"), val('spades_sspace') into files_sspace 
     
     when:
-    params.assembly in ['spades-sspace','all']
+    params.assembly in ['spades_sspace','all']
 
     script:
     """
@@ -195,13 +199,13 @@ process links_scaffolding{
     tag{data_id}
     
     input:
-    set data_id, forward, reverse, longread, scaffolds from files_spades-links
+    set data_id, forward, reverse, longread, scaffolds from files_spades_links
     
     output:
-    set data_id, forward, reverse, longread, file("${data_id}_links.fasta"), val('spades-links') into files_links
+    set data_id, forward, reverse, longread, file("${data_id}_links.fasta"), val('spades_links') into files_links
 
     when:
-    params.assembly in ['spades-links', 'all']
+    params.assembly in ['spades_links', 'all']
     
     script:
     """
@@ -484,7 +488,7 @@ process mummer{
 process quast{
     tag{id}
     
-    publishDir "${params.outFolder}/${data_id}_${params.assembly}/quast/", mode: 'copy'
+    publishDir "${params.outFolder}/${id}_${params.assembly}/quast/", mode: 'copy'
 
     input: 
     set id, assembly, type from analysis_quast
