@@ -100,7 +100,7 @@ process fastqc{
     script: 
     """
     mkdir -p fastqc
-    ${FASTQC} sr1 sr2 -o fastqc
+    ${FASTQC} ${sr1} ${sr2} -o fastqc
     """
 }
 
@@ -117,7 +117,7 @@ process unicycler{
     set id, sr1, sr2, lr from files_pre_unicycler
 
     output:
-    set id, sr1, sr2, lr, file("${id}/assembly.fasta"), 'unicycler' into assembly_unicycler
+    set id, sr1, sr2, lr, file("${id}/assembly.fasta"), val('unicycler') into assembly_unicycler
     file("${id}/*")
 
     when:
@@ -498,6 +498,6 @@ process quast{
 
     script:
     """
-    ${QUAST} ${assembly} -t ${params.cpu} -o quast_${type} -R ${params.reference} --labels ${id}_${type} --scaffolds --min-identity 85
+    ${QUAST} ${assembly} -t ${params.cpu} -o quast_${type} -R ${params.reference} --labels ${id}_${type} --min-identity 85
     """
 }

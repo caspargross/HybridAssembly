@@ -21,5 +21,13 @@ Installation:
 
 Assembly paths:
 ---------------
+There are seven different run configuration which select different assembly tools:
+
+* `spades_sspace` SPAdes assembly with SSPACE scaffolding
+* `spades_links` SPAdes assembly with LINKS scaffolding
+* `canu` Canu assembly
+* `unicycler` [Unicycler](https://github.com/rrwick/Unicycler) full bacterial assembly pipeline
+* `flye` [Flye](https://github.com/fenderglass/flye) assembler
+* 
 
 <img src="./FlowSchema.svg">
