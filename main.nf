@@ -2,8 +2,8 @@
 params.assembly = ''
 
 // Target coverage for long reads before assembly
-params.cov = 50
-targetLength = params.cov * params.genome_size
+target_sr_number = (params.target_shortread_cov * params.genome_size) / params.shortread_length
+target_lr_length = params.target_longread_cov * params.genome_size
 
 //inputFiles
 files = Channel.fromPath(params.pathFile)
@@ -18,13 +18,50 @@ if (!(params.assembly in ['spades_sspace', 'spades_links', 'canu', 'unicycler', 
 }
 
 
+// Trim adapters on short read files
+process seqpurge {
+    tag{id}
+    
+    input:
+    set id, sr1, sr2, lr from files
+
+    output:
+    set id, file('sr1.fastq.gz'), file('sr2.fastq.gz'), lr into files_purged
+    
+    script:
+    """
+    $SEQPURGE -in1 ${sr1} -in2 ${sr2} -threads ${params.cpu} -out1 sr1.fastq.gz -out2 sr2.fastq.gz
+    """
+
+
+}
+
+// Subset short reads
+process sample_shortreads {
+    tag{id}
+
+    input:
+    set id, sr1, sr2, lr from files_purged
+
+    output:
+    set id, file('sr1_filt.fastq'), file('sr2_filt.fastq'), lr into files_filtered
+    
+    script:
+    """
+    ${SEQTK} sample -s100 sr1 ${target_sr_number} > sr1_filt.fastq 
+    ${SEQTK} sample -s100 sr2 ${target_sr_number} > sr2_filt.fastq 
+    """
+
+
+
+}
 
 // Trim adapter sequences on long read nanopore files
 process porechop {
     tag{id}
         
     input:
-    set id, sr1, sr2, lr from files
+    set id, sr1, sr2, lr from files_filtered
     
     output:
     set id, sr1, sr2, file('lr_porechop.fastq') into files_porechop
@@ -57,10 +94,9 @@ process filtlong {
     $FILTLONG -1 ${sr1} -2 ${sr2} \
     --min_length 1000 \
     --keep_percent 90 \
-    --target_bases  ${targetLength} \
+    --target_bases  ${target_sr_length} \
     ${lr} > lr_filtlong.fastq
     """
-    // Expected genome size: 5.3Mbp --> Limit to 100Mbp for approx 20x coverage
 }
 
 /*
