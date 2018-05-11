@@ -1,5 +1,7 @@
 #!/usr/bin/env/ nextflow
 params.assembly = ''
+params.plasmid = false
+min_contig_length = 2000
 
 // Target coverage for long reads before assembly
 target_sr_number = (params.target_shortread_cov * params.genome_size) / params.shortread_length
@@ -190,16 +192,27 @@ process spades{
 
     when:
     params.assembly in ['spades_sspace','spades_links','all']
-    
+     
     script:
-    """
-    ${SPADES} -t ${params.cpu} -m ${params.mem} \
-    --phred-offset 33 --careful \
-    --pe1-1 ${forward} \
-    --pe1-2 ${reverse} \
-    --nanopore ${longread} \
-    -o spades
-    """
+    if ( params.plasmid == true) 
+        """
+        ${SPADES} -t ${params.cpu} -m ${params.mem} \
+        --phred-offset 33 --careful \
+        --pe1-1 ${forward} \
+        --pe1-2 ${reverse} \
+        --nanopore ${longread} \
+        --plasmid
+        -o spades
+        """
+    else  
+        """
+        ${SPADES} -t ${params.cpu} -m ${params.mem} \
+        --phred-offset 33 --careful \
+        --pe1-1 ${forward} \
+        --pe1-2 ${reverse} \
+        --nanopore ${longread} \
+        -o spades
+        """
 }
 
 
@@ -435,8 +448,8 @@ process length_filter {
     set id, sr1, sr2, lr, contigs, type from assembly_merged
 
     output:
-    set id, file("${id}_${type}_final.fasta"), type into analysis_mummer, analysis_quast
-    file("${id}_${type}_lengthDist.pdf")
+    set id, type into complete_status
+    file("${id}_${type}_final.fasta")
     
     // Uses python2 
     script:
@@ -456,35 +469,25 @@ process length_filter {
     input_handle=open('${contigs}', 'rU')
     output_handle=open('${id}_${type}_final.fasta', 'w')
     
-    for record in SeqIO.parse(input_handle, 'fasta'):
-        if len(record.seq) >= 2000 :
+    for index, record in enumerate(SeqIO.parse(input_handle, 'fasta')):
+        if len(record.seq) >= ${min_contig_length}:
+            record.id = "${id}."str(index+1)
+            record.description = "assembler = ${type}, length = " + str(len(record.seq))
             long_contigs.append(record)
-    
     
     SeqIO.write(long_contigs, output_handle, "fasta")
     
     input_handle.close()
     output_handle.close()
 
-    lengths = list(map(len, long_contigs))
-    
-    fig, ax = plt.subplots(figsize=(8, 3))
-    ax.plot(lengths, np.repeat(1, len(lengths)),'bs')
-    
-    title = 'Contig lengths for ${id}'
-    ax.set_title(title)
-    ax.set_xscale('symlog')
-    ax.set_xlabel("Nucleotides")
-    ax.tick_params(
-        axis = 'y',
-        which = 'both',
-        left = 'off',
-        right = 'off',
-        labelleft = 'off'
-    )
-    ax.xaxis.grid(False)
-    fig.savefig("${id}_${type}_lengthDist.pdf", format='pdf')
     """
 
+}
+
+complete_status
+    .subscribe onNext: {println("Completed" + it[0] + " assembly for "  + it[1])}, onComplete: {println "Done:"}
+
+workflow.onComplete {
+    println "Hybrid assembly pipeline completed at: $workflow.complete"
 }
 
