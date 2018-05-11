@@ -48,8 +48,8 @@ process sample_shortreads {
     
     script:
     """
-    ${SEQTK} sample -s100 sr1 ${target_sr_number} > sr1_filt.fastq 
-    ${SEQTK} sample -s100 sr2 ${target_sr_number} > sr2_filt.fastq 
+    ${SEQTK} sample -s100 ${sr1} ${target_sr_number} > sr1_filt.fastq 
+    ${SEQTK} sample -s100 ${sr2} ${target_sr_number} > sr2_filt.fastq 
     """
 
 
@@ -94,7 +94,7 @@ process filtlong {
     $FILTLONG -1 ${sr1} -2 ${sr2} \
     --min_length 1000 \
     --keep_percent 90 \
-    --target_bases  ${target_sr_length} \
+    --target_bases  ${target_lr_length} \
     ${lr} > lr_filtlong.fastq
     """
 }
@@ -365,6 +365,7 @@ process racon {
 * Includes polisher module and repeat classification and analysis
 */
 process flye {
+    errorStrategy 'ignore'
     tag{id}
     publishDir "${params.outFolder}/${id}_${params.assembly}", mode: 'copy'
 
@@ -373,7 +374,9 @@ process flye {
 
     output:
     set id, sr1, sr2, lr, file("flye/scaffolds.fasta"), val('flye') into files_unpolished_flye
-    files("flye/*")
+    file("flye/assembly_info.txt")
+    file("flye/2-repeat/graph_final.gfa")
+
     
     when:
     params.assembly in ['flye', 'all']
