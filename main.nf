@@ -181,14 +181,17 @@ process unicycler{
 *
 */
 process spades{
-    tag{data_id}
+    tag{id}
+    publishDir "${params.outFolder}/${id}_${params.assembly}", mode: 'copy'   
 
     input:
-    set data_id, forward, reverse, longread from files_pre_spades  
+    set id, forward, reverse, longread from files_pre_spades  
 
     output:
-    set data_id, forward, reverse, longread, file("spades/scaffolds.fasta") into files_spades_sspace, files_spades_links
-    file("spades/contigs.fasta")
+    set id, forward, reverse, longread, file("spades/scaffolds.fasta"), val('spades_plasmid') into files_spades_sspace, files_spades_links, files_spades_plasmid 
+    file("spades/scaffolds.fasta")
+    file("spades/${id}_spades_graph.gfa")
+
 
     when:
     params.assembly in ['spades_sspace','spades_links','all']
@@ -201,8 +204,9 @@ process spades{
         --pe1-1 ${forward} \
         --pe1-2 ${reverse} \
         --nanopore ${longread} \
-        --plasmid
+        --plasmid \
         -o spades
+        cp spades/assembly_graph_with_scaffolds.gfa spades/${id}_spades_graph.gfa
         """
     else  
         """
@@ -212,6 +216,7 @@ process spades{
         --pe1-2 ${reverse} \
         --nanopore ${longread} \
         -o spades
+        cp spades/assembly_graph_with_scaffolds.gfa spades/${id}_spades_graph.gfa
         """
 }
 
@@ -225,13 +230,13 @@ process sspace_scaffolding{
     tag{data_id}
 
     input:
-    set data_id, forward, reverse, longread, scaffolds from files_spades_sspace  
+    set data_id, forward, reverse, longread, scaffolds, plasmid from files_spades_sspace  
 
     output:
     set data_id, forward, reverse, longread, file("sspace/scaffolds.fasta"), val('spades_sspace') into files_sspace 
     
     when:
-    params.assembly in ['spades_sspace','all']
+    params.assembly in ['spades_sspace','all'] && !params.plasmid
 
     script:
     """
@@ -248,13 +253,13 @@ process links_scaffolding{
     tag{data_id}
     
     input:
-    set data_id, forward, reverse, longread, scaffolds from files_spades_links
+    set data_id, forward, reverse, longread, scaffolds, plasmid from files_spades_links
     
     output:
     set data_id, forward, reverse, longread, file("${data_id}_links.fasta"), val('spades_links') into files_links
 
     when:
-    params.assembly in ['spades_links', 'all']
+    params.assembly in ['spades_links', 'all'] && !params.plasmid
     
     script:
     """
@@ -311,6 +316,7 @@ process canu{
     output: 
     set id, sr1, sr2, lr, file("${id}.contigs.fasta"), val('canu') into files_unpolished_canu
     file("${id}.report")
+    file("${id}_canu.gfa")
 
     when:
     params.assembly in ['canu','all']
@@ -318,6 +324,7 @@ process canu{
     script:
     """
     ${CANU} -s ${canu_settings} -p ${id} -nanopore-raw ${lr}
+    cp ${id}.unitigs.gfa ${id}_canu.gfa
     """
 }
 
@@ -335,6 +342,7 @@ process miniasm{
     
     output:
     set id, sr1, sr2, lr, file("miniasm_assembly.fasta") into files_noconsensus
+    file("${id}_miniasm_graph.gfa")
 
     when:
     params.assembly in ['miniasm', 'all']
@@ -342,8 +350,8 @@ process miniasm{
     script:
     """
     ${MINIMAP2} -x ava-ont -t ${params.cpu} ${lr} ${lr} > ovlp.paf
-    ${MINIASM} -f ${lr} ovlp.paf > miniasm_assembly.gfa
-    awk '/^S/{print ">"\$2"\\n"\$3}' miniasm_assembly.gfa | fold > miniasm_assembly.fasta
+    ${MINIASM} -f ${lr} ovlp.paf > ${id}_miniasm_graph.gfa
+    awk '/^S/{print ">"\$2"\\n"\$3}' ${id}_miniasm_graph.gfa | fold > miniasm_assembly.fasta
     """
 }
 
@@ -388,7 +396,7 @@ process flye {
     output:
     set id, sr1, sr2, lr, file("flye/scaffolds.fasta"), val('flye') into files_unpolished_flye
     file("flye/assembly_info.txt")
-    file("flye/2-repeat/graph_final.gfa")
+    file("flye/${id}_flye_graph.gfa")
 
     
     when:
@@ -398,6 +406,7 @@ process flye {
     """
     ${FLYE} --nano-raw ${lr} --out-dir flye \
     --genome-size ${params.genome_size} --threads ${params.cpu} -i 0
+    cp flye/2-repeat/graph_final.gfa flye/${id}_flye_graph.gfa
     """
 }
 
@@ -435,8 +444,11 @@ process pilon{
 
 // Merge channel output from different assembly paths
 assembly=Channel.create()
-assembly_merged = assembly.mix(assembly_gapfiller, assembly_unicycler, assembly_pilon)
-
+if (params.plasmid) {
+    assembly_merged = assembly.mix(files_spades_plasmid, assembly_unicycler, assembly_pilon)
+} else {
+    assembly_merged = assembly.mix(assembly_gapfiller, assembly_unicycler, assembly_pilon)
+}
 /*
 * Length filter trimming of contigs < 2000bp from the final assembly
 * Creates a plot of contig lenghts in the assembly
@@ -471,8 +483,8 @@ process length_filter {
     
     for index, record in enumerate(SeqIO.parse(input_handle, 'fasta')):
         if len(record.seq) >= ${min_contig_length}:
-            record.id = "${id}."str(index+1)
-            record.description = "assembler = ${type}, length = " + str(len(record.seq))
+            record.id = "${id}." + str(index+1)
+            record.description = "assembler=${type}, length=" + str(len(record.seq))
             long_contigs.append(record)
     
     SeqIO.write(long_contigs, output_handle, "fasta")
@@ -485,7 +497,7 @@ process length_filter {
 }
 
 complete_status
-    .subscribe onNext: {println("Completed" + it[0] + " assembly for "  + it[1])}, onComplete: {println "Done:"}
+    .subscribe onNext: {println("Completed " + it[0] + " assembly for "  + it[1])}, onComplete: {println "Done:"}
 
 workflow.onComplete {
     println "Hybrid assembly pipeline completed at: $workflow.complete"
