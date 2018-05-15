@@ -158,6 +158,7 @@ process bwa_aln {
 
 
 process bwa_call {
+    tag{id}
     publishDir "${params.analysisFolder}/${id}/variants/", mode: 'copy'
 
     input:
@@ -165,7 +166,7 @@ process bwa_call {
 
     output:
     file("${id}_${type}_snp.bcf")
-    set id, type, genome, aln, file("${id}_${typer}_nsnp.txt") into snp_number
+    set id, type, genome, aln, file("${id}_${type}_nsnp.txt") into snp_number
 
     script:
     """
