@@ -484,7 +484,7 @@ process length_filter {
     for index, record in enumerate(SeqIO.parse(input_handle, 'fasta')):
         if len(record.seq) >= ${min_contig_length}:
             record.id = "${id}." + str(index+1)
-            record.description = "assembler=${type}, length=" + str(len(record.seq))
+            record.description = "assembler=${type} length=" + str(len(record.seq))
             long_contigs.append(record)
     
     SeqIO.write(long_contigs, output_handle, "fasta")

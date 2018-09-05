@@ -1,12 +1,18 @@
 /**
-*
-*   HYBRID ASSEMBLY QUALITY CHECK  
-*
-*   This pipeline runs several quality checks on the 
-*   assembled genomes. 
-*   Caspar Gross 2018
-* 
-**/
+
+    HYBRID ASSEMBLY QUALITY CHECK  
+
+    This pipeline runs several quality checks on the 
+    Caspar Gross
+
+    ------------------------------
+    Process overview:
+    - MapReads - Map reads with BWA
+    - Quast - Calculate sumamry statistics with quast
+    - checkM - Run full lineage analysis with checkM
+    - checkM plot - Plot additional checkM figures
+
+*/
 
 params.reference = false
 
@@ -136,6 +142,7 @@ process quast{
 
 process bwa_aln {
     publishDir "${params.analysisFolder}/${id}/aligned_reads/", mode: 'copy'
+    tag{id}
 
     input:
     set id, type, genome, sr1, sr2 from genomes_bwa
@@ -147,9 +154,8 @@ process bwa_aln {
     script:
     """
     ${BWA} index ${genome}
-    ${BWA} aln ${genome} ${sr1} > R1.sai
-    ${BWA} aln ${genome} ${sr2} > R2.sai
-    ${BWA} sampe ${genome} R1.sai R2.sai ${sr1} ${sr2} \
+    ${BWA} mem -M -t ${params.cpu} ${genome} ${sr1} ${sr2} \
+    | ${SAMTOOLS} view -b -F 4 \
     | ${SAMTOOLS} sort -o ${genome.baseName}_${type}.bam
     ${SAMTOOLS} index ${genome.baseName}_${type}.bam ${genome.baseName}_${type}.bai
     """
@@ -176,4 +182,22 @@ process bwa_call {
     ${BCFTOOLS} view ${id}_${type}_snp.bcf | wc -l > ${id}_${type}_nsnp.txt
     """
 }
+
+process alignment_stats {
+    tag{id}
+    publishDir "${params.analysisFolder}/${id}/alignment_stats/", mode: 'copy'
+    
+    input:
+    set id, type, genome, aln, snp_n from snp_number
+
+    output:
+    file("*")
+
+    script:
+    """
+    coverageAnalysis.R -g ${genome} -b ${aln} -o ${id}_${type}
+    """
+}
+
+
 
