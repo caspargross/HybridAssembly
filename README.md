@@ -1,14 +1,14 @@
 hybridAssembly
 ===============
 
-hybridAssembly is a pipeline for hybrid de novo assembly of bacterial genomes. The pipeline is based around a [NextFlow](https://github.com/nextflow-io/nextflow) script. 
+hybridAssembly is a pipeline for hybrid de novo assembly of bacterial genomes. The pipeline uses a [NextFlow](https://github.com/nextflow-io/nextflow) script to combine several tools. 
 
 Aims of this pipeline:
 * Give an overview about different approaches to hybrid Assembly
 * Compare the results of different tools
-* Learning worklfow management with Nextflow
+* Using Nextflow as a workflow management tool.
 
-This pipeline is mainly intended for personal use and therefore not well documented or easy to implement. If I find the time, I might create a docker container to share all tools used. 
+Currently this pipeline is mainly intended for personal use and therefore not well documented and in final state. Hopefully there will be a docker image including all the dependencies soon.  
 
 Installation:
 -------------
@@ -19,6 +19,13 @@ Installation:
 
 3) Change the path variables for the different tools in the config file  'nextflow.config'
 
+
+Dependencies:
+-------------
+
+For all needed tools see the environment variables in the config file. For some tools it is recommended to install conda packages.
+
+
 Assembly paths:
 ---------------
 There are seven different run configuration which select different assembly tools:
@@ -28,6 +35,7 @@ There are seven different run configuration which select different assembly tool
 * `canu` Canu assembly
 * `unicycler` [Unicycler](https://github.com/rrwick/Unicycler) full bacterial assembly pipeline
 * `flye` [Flye](https://github.com/fenderglass/flye) assembler
-* 
+* `miniasm` [Miniasm](https://github.com/lh3/miniasm) assembler
+* `all` Execute all paths in parallel to compare results
 
 <img src="./FlowSchema.svg">
