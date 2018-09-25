@@ -5,30 +5,24 @@
 #                              #
 ################################
 
-FROM debian:jessie 
-MAINTAINER mail@caspar.one
+FROM continuumio/miniconda
+MAINTAINER Caspar Gross <mail@caspar.one>
+LABEL description="contains all the dependencies for hybridAssembly pipeline at github.com/caspargross/hybridAssembly" 
 
-# Commont applications
-RUN apt-get update && apt-get install --yes --no-install-recommends \
-    wget \
-    locales \
-    vim-tiny \
-    git \
-    cmake \
-    build-essential \
-    gcc-multilib \
-    perl \
-    python
 
-# Install JAVA 8
+# Install conda environments
+COPY envs/ha_py36.yml /
+RUN conda env create -f /ha_py36.yml && conda clean -a
 
-# Install SPAdes
+COPY envs/ha_py27.yml /
+RUN conda env create -f /ha_py27.yml && conda clean -a
 
-# 
+COPY envs/ha_pl.yml /
+RUN conda env create -f /ha_pl.yml && conda clean -a
 
-# Set current working directory to /app
-WORKDIR /app
+COPY envs/ha_quast.yml /
+RUN conda env create -f /ha_quast.yml && conda clean -a
 
-# Copy the current directory contents into the container at /app
-
+COPY envs/ha_uni.yml /
+RUN conda env create -f /ha_uni.yml && conda clean -a
 

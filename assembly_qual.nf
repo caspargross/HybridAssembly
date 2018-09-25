@@ -1,16 +1,23 @@
 /**
 
-    HYBRID ASSEMBLY QUALITY CHECK  
+    HYBRID ASSEMBLY QUALITY CHECK.
 
     This pipeline runs several quality checks on the 
+    finished hybrid assembly and can be run with or
+    without reference genome. It uses three tools to 
+    create reference statistics, check the assembly
+    using mapped paired end reads and functional 
+    validation using core genes with checkM.
+
+    written by
     Caspar Gross
 
     ------------------------------
     Process overview:
-    - MapReads - Map reads with BWA
     - Quast - Calculate sumamry statistics with quast
     - checkM - Run full lineage analysis with checkM
     - checkM plot - Plot additional checkM figures
+    - REAPR
 
 */
 
@@ -53,69 +60,6 @@ genomes_bwa = samples_listed_bwa
     .map{it ->  [it[0], (it[1] =~ /_(.+)_/)[0][1], it[1], it[2], it[3] ]}
 //    .view()
 
-// Mummerplot against reference
-process mummer_alignment {
-    tag{id}
-
-    input:
-    set id, type, genome, ref from genomes_mummer
-    
-    output:
-    set id, type, file("${id}.coords"), ref into mummer_coords 
-
-	when:
-	params.reference
-    
-	script:
-    """
-    ${MUMMER}/nucmer --mum -l 100 -c 150 -p ${id} ${ref} ${genome}
-    ${MUMMER}/delta-filter -m ${id}.delta > ${id}.delta.m
-    ${MUMMER}/show-coords -c ${id}.delta.m > ${id}.coords
-
-    """
-
-}
-
-// Calculate DNADiff
-process mummer_dnadiff {
-    tag{id}
-    publishDir "${params.analysisFolder}/${id}/MummerPlot/", mode: 'copy'
-
-    input:
-    set id, type, genome, ref from genomes_dnadiff
-    
-    output:
-    file("${id}_${type}_dnadiff.report")
-
-	when:
-    params.reference
-
-    script:
-    """
-    ${MUMMER}/dnadiff -p ${id}_${type}_dnadiff ${ref} ${genome}
-
-    """
-
-}
-
-
-process mummer_plot {
-    tag{id}
-    publishDir "${params.analysisFolder}/${id}/MummerPlot/", mode: 'copy'
-
-    input:
-    set id, type, coords, ref from mummer_coords
-
-    output:
-    file "*" optional true
-
-
-    script:
-    """
-    Rscript ${baseDir}/scripts/mummerCoordsDotPlotly.R -i ${coords} -o ${id}_${type}_mplot -p 9 -s -t -m 100 -q 100 -l
-    """
-}
-
 
 // Move quast analysis from hybridAssembly to over here
 process quast{
@@ -138,65 +82,6 @@ process quast{
         ${QUAST} ${genome} -t ${params.cpu} -o quast_${type} --labels ${id}_${type} --min-identity 85
         """
 
-}
-
-process bwa_aln {
-    publishDir "${params.analysisFolder}/${id}/aligned_reads/", mode: 'copy'
-    tag{id}
-
-    input:
-    set id, type, genome, sr1, sr2 from genomes_bwa
-
-    output:
-    set id, type, genome, file('*.bam') into alignment_bwa
-    file('*.bai')
-
-    script:
-    """
-    ${BWA} index ${genome}
-    ${BWA} mem -M -t ${params.cpu} ${genome} ${sr1} ${sr2} \
-    | ${SAMTOOLS} view -b -F 4 \
-    | ${SAMTOOLS} sort -o ${genome.baseName}_${type}.bam
-    ${SAMTOOLS} index ${genome.baseName}_${type}.bam ${genome.baseName}_${type}.bai
-    """
-
-}
-
-
-process bwa_call {
-    tag{id}
-    publishDir "${params.analysisFolder}/${id}/variants/", mode: 'copy'
-
-    input:
-    set id, type, genome, aln from alignment_bwa
-
-    output:
-    file("${id}_${type}_snp.bcf")
-    set id, type, genome, aln, file("${id}_${type}_nsnp.txt") into snp_number
-
-    script:
-    """
-    ${BCFTOOLS} mpileup -Ou -f ${genome} ${aln} | \
-    ${BCFTOOLS} call -mv -Ob -o ${id}_${type}_snp.bcf
-
-    ${BCFTOOLS} view ${id}_${type}_snp.bcf | wc -l > ${id}_${type}_nsnp.txt
-    """
-}
-
-process alignment_stats {
-    tag{id}
-    publishDir "${params.analysisFolder}/${id}/alignment_stats/", mode: 'copy'
-    
-    input:
-    set id, type, genome, aln, snp_n from snp_number
-
-    output:
-    file("*")
-
-    script:
-    """
-    coverageAnalysis.R -g ${genome} -b ${aln} -o ${id}_${type}
-    """
 }
 
 
