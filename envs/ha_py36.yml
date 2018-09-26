@@ -103,6 +103,5 @@ dependencies:
   - pip:
     - networkx==2.1
     - nose==1.3.7
-    - recycler==0.62
-prefix: /mnt/users/ahgrosc1/tools/miniconda3/envs/ha_py36
+prefix: /envs/ha_py36
 
