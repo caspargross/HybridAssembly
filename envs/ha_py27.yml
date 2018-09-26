@@ -90,7 +90,6 @@ dependencies:
     - decorator==4.2.1
     - networkx==2.1
     - poretools==0.6.0
-    - recycler==0.62
     - seaborn==0.8.1
-prefix: /ha_py27
+prefix: /envs/ha_py27
 
