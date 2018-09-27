@@ -5,9 +5,13 @@ channels:
   - defaults
 dependencies:
   - bcftools=1.9=h4da6232_0
+  - blast=2.7.1=h4422958_6
+  - bowtie2=2.3.4.3=py36h2d50403_0
   - filtlong=0.2.0=he941832_2
+  - freebayes=1.2.0=py36h82df9c4_3
   - htslib=1.9=hc238db4_4
   - libdeflate=1.0=h470a237_0
+  - links=1.8.6=h470a237_0
   - miniasm=0.3_r179=ha92aebf_0
   - minimap2=2.12=ha92aebf_0
   - nanoget=1.7.4=py36_0
@@ -15,14 +19,41 @@ dependencies:
   - nanoplot=1.13.0=py36_0
   - nanoplotter=1.0.0=py36_2
   - pauvre=0.1.86=py_1
+  - perl-archive-tar=2.18=pl526_3
+  - perl-carp=1.38=pl526_1
+  - perl-compress-raw-bzip2=2.074=pl526hfc679d8_0
+  - perl-compress-raw-zlib=2.081=pl526h2d50403_0
+  - perl-data-dumper=2.161=pl526_2
+  - perl-encode=2.88=pl526_1
+  - perl-exporter=5.72=pl526_1
+  - perl-exporter-tiny=1.000000=pl526_0
+  - perl-extutils-makemaker=7.34=pl526_2
+  - perl-io-compress=2.069=pl526hfc679d8_5
+  - perl-io-zlib=1.10=pl526_2
+  - perl-list-moreutils=0.428=pl526_1
+  - perl-list-moreutils-xs=0.428=pl526_0
+  - perl-parent=0.236=pl526_1
+  - perl-pathtools=3.73=h470a237_2
+  - perl-scalar-list-utils=1.45=pl526h470a237_3
+  - perl-test-more=1.001002=pl526_1
+  - perl-xsloader=0.24=pl526_0
   - pilon=1.22=1
   - porechop=0.2.3_seqan2.1.1=py36h2d50403_3
   - pysam=0.15.1=py36h0380709_0
   - racon=1.3.1=py36_0
   - samtools=1.9=h8ee4bcc_1
+  - spades=3.12.0=1
+  - unicycler=0.4.6=py36hdbcaa40_0
+  - boost=1.67.0=py36h3e44d54_0
+  - boost-cpp=1.67.0=h3a22d5f_0
   - ca-certificates=2018.8.24=ha4d7672_0
   - certifi=2018.8.24=py36_1001
+  - gmp=6.1.2=hfc679d8_0
+  - gnutls=3.5.19=h2a4e5f8_1
+  - nettle=3.3=0
   - openssl=1.0.2p=h470a237_0
+  - parallel=20180922=0
+  - perl=5.26.2=h470a237_0
   - asn1crypto=0.24.0=py36_0
   - biopython=1.72=py36h04863e7_0
   - blas=1.0=mkl
@@ -100,5 +131,8 @@ dependencies:
   - wheel=0.31.1=py36_0
   - xz=5.2.4=h14c3975_4
   - zlib=1.2.11=ha838bed_2
+  - pip:
+    - networkx==2.1
+    - nose==1.3.7
 prefix: /envs/ha_py36
 
