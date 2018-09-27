@@ -117,7 +117,6 @@ dependencies:
   - pip:
     - decorator==4.2.1
     - networkx==2.1
-    - recycler==0.62
     - seaborn==0.8.1
 prefix: /envs/ha_quast
 
