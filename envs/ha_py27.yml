@@ -10,6 +10,7 @@ dependencies:
   - checkm-genome=1.0.11=py27_1
   - circos=0.69.6=2
   - dendropy=4.4.0=py_0
+  - diamond=0.8.36=hd28b015_2
   - flye=2.3.5=py27ha92aebf_3
   - gap2seq=2.1=boost1.64_zlib1.2.11_3
   - glimmerhmm=3.0.4=h2d50403_2
@@ -63,14 +64,17 @@ dependencies:
   - prodigal=2.6.3=1
   - pysam=0.15.1=py27h0380709_0
   - quast=5.0.0=py27pl526ha92aebf_1
+  - rgi=4.0.3=py27ha92aebf_3
   - samtools=1.9=h46bd0b3_0
   - simplejson=3.8.1=py27_0
+  - biopython=1.72=py27_0
   - boost=1.64.0=py27_4
   - boost-cpp=1.64.0=1
   - ca-certificates=2018.8.24=ha4d7672_0
   - cairo=1.14.10=0
   - certifi=2018.8.24=py27_1001
   - dbus=1.13.0=h3a4f0e9_0
+  - filetype=1.0.1=py_0
   - fontconfig=2.12.6=0
   - freetype=2.8.1=hfa320df_1
   - gettext=0.19.8.1=h5e8e0c9_1
