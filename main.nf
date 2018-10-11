@@ -1,7 +1,35 @@
 #!/usr/bin/env/ nextflow
+
+/* 
+===============================================================================
+   M I C R O B I A L   H Y B R I D   A S S E M B L Y   P I P E L I N E 
+===============================================================================
+Nextflow pipeline for hybrid assembly, quality check and plasmid finding
+of bacterial genomes.
+-------------------------------------------------------------------------------
+@ Author
+Caspar Groß <mail@caspar.one>
+-------------------------------------------------------------------------------
+@ Documentation
+https://github.com/caspargross/hybridassembly/README.md
+------------------------------------------------------------------------------
+Processes overview:
+... to be completed
+------------------------------------------------------------------------------
+*/
+
+
+/* 
+------------------------------------------------------------------------------
+                       C O N F I G U R A T I O N 
+------------------------------------------------------------------------------
+*/
+
+if (params.help) exit 0, helpMessage()
+
 params.assembly = ''
 params.plasmid = false
-min_contig_length = 2000
+min_contig_length = 1000
 
 // Target coverage for long reads before assembly
 target_sr_number = (params.target_shortread_cov * params.genome_size) / params.shortread_length
@@ -19,9 +47,19 @@ if (!(params.assembly in ['spades_sspace', 'spades_links', 'canu', 'unicycler', 
     exit 1, "Invalid assembly protocol: (${params.assembly}) \nMust be one of the following:\n    'canu'\n    'spades_links'\n    'spades_sspace'\n    'unicycler'\n    'miniasm'\n    'flye'\n    'all'"
 }
 
+// Shorthands for activations of conda dirs
+PY27 = "source activate ha_py27"
+PY36 = "source activate ha_py36"
 
-// Trim adapters on short read files
+
+/* 
+------------------------------------------------------------------------------
+                           P R O C E S S E S 
+------------------------------------------------------------------------------
+*/
+
 process seqpurge {
+// Trim adapters on short read files
     tag{id}
     
     input:
@@ -29,17 +67,19 @@ process seqpurge {
 
     output:
     set id, file('sr1.fastq.gz'), file('sr2.fastq.gz'), lr into files_purged
+    file("${id}_readQC.qcml")
     
     script:
     """
-    $SEQPURGE -in1 ${sr1} -in2 ${sr2} -threads ${params.cpu} -out1 sr1.fastq.gz -out2 sr2.fastq.gz
+    $PY27  
+    SeqPurge -t ${params.cpu} -gc ${id}_readQC.qcml -in1 ${sr1} -in2 ${sr2} -threads ${params.cpu} -out1 sr1.fastq.gz -out2 sr2.fastq.gz
     """
 
 
 }
 
-// Subset short reads
 process sample_shortreads {
+// Subset short reads
     tag{id}
 
     input:
@@ -53,13 +93,10 @@ process sample_shortreads {
     ${SEQTK} sample -s100 ${sr1} ${target_sr_number} > sr1_filt.fastq 
     ${SEQTK} sample -s100 ${sr2} ${target_sr_number} > sr2_filt.fastq 
     """
-
-
-
 }
 
-// Trim adapter sequences on long read nanopore files
 process porechop {
+// Trim adapter sequences on long read nanopore files
     tag{id}
         
     input:
@@ -78,8 +115,8 @@ process porechop {
 }
 
 
-// Quality filter long reads
 process filtlong {
+// Quality filter long reads
     tag{id}
 
     input: 
@@ -503,3 +540,106 @@ workflow.onComplete {
     println "Hybrid assembly pipeline completed at: $workflow.complete"
 }
 
+/*
+================================================================================
+=                               F U N C T I O N S                              =
+================================================================================
+*/
+
+def helpMessage() {
+  // Display help message
+  this.hybridassemblyMessage()
+  log.info "    Usage:"
+  log.info "       nextflow run caspargross/hybridAssembly --samples <file[.csv]>"
+  log.info "       nextflow run SciLifeLab/Sarek --sampleDir <Directory> [--step STEP] --genome <Genome>"
+  log.info "    --sample <file.tsv>"
+  log.info "       Specify a TSV file containing paths to sample files."
+  log.info "    --sampleDir <Directoy>"
+  log.info "       Specify a directory containing sample files."
+  log.info "    --test"
+  log.info "       Use a test sample."
+  log.info "    --step"
+  log.info "       Option to start workflow"
+  log.info "       Possible values are:"
+  log.info "         mapping (default, will start workflow with FASTQ files)"
+  log.info "         recalibrate (will start workflow with non-recalibrated BAM files)"
+  log.info "    --noReports"
+  log.info "       Disable QC tools and MultiQC to generate a HTML report"
+  log.info "    --genome <Genome>"
+  log.info "       Use a specific genome version."
+  log.info "       Possible values are:"
+  log.info "         GRCh37"
+  log.info "         GRCh38 (Default)"
+  log.info "         smallGRCh37 (Use a small reference (Tests only))"
+  log.info "    --onlyQC"
+  log.info "       Run only QC tools and gather reports"
+  log.info "    --help"
+  log.info "       you're reading it"
+  log.info "    --verbose"
+  log.info "       Adds more verbosity to workflow"
+}
+
+def minimalInformationMessage() {
+  // Minimal information message
+  log.info "Command Line: " + workflow.commandLine
+  log.info "Profile     : " + workflow.profile
+  log.info "Project Dir : " + workflow.projectDir
+  log.info "Launch Dir  : " + workflow.launchDir
+  log.info "Work Dir    : " + workflow.workDir
+  log.info "Cont Engine : " + workflow.containerEngine
+  log.info "Out Dir     : " + params.outDir
+  log.info "TSV file    : ${tsvFile}"
+  log.info "Genome      : " + params.genome
+  log.info "Genome_base : " + params.genome_base
+  log.info "Step        : " + step
+  log.info "Containers"
+  if (params.repository != "") log.info "  Repository   : " + params.repository
+  if (params.containerPath != "") log.info "  ContainerPath: " + params.containerPath
+  log.info "  Tag          : " + params.tag
+  log.info "Reference files used:"
+  log.info "  dbsnp       :\n\t" + referenceMap.dbsnp
+  log.info "\t" + referenceMap.dbsnpIndex
+  log.info "  genome      :\n\t" + referenceMap.genomeFile
+  log.info "\t" + referenceMap.genomeDict
+  log.info "\t" + referenceMap.genomeIndex
+  log.info "  bwa indexes :\n\t" + referenceMap.bwaIndex.join(',\n\t')
+  log.info "  intervals   :\n\t" + referenceMap.intervals
+  log.info "  knownIndels :\n\t" + referenceMap.knownIndels.join(',\n\t')
+  log.info "\t" + referenceMap.knownIndelsIndex.join(',\n\t')
+}
+
+def nextflowMessage() {
+  // Nextflow message (version + build)
+  log.info "N E X T F L O W  ~  version ${workflow.nextflow.version} ${workflow.nextflow.build}"
+}
+
+def pipelineMessage() {
+  // Display hybridAssembly info  message
+  log.info "hybridAssembly Pipeline ~ ${workflow.manifest.version} - " + this.grabRevision() + (workflow.commitId ? " [${workflow.commitId}]" : "")
+}
+
+def startMessage() {
+  // Display start message
+  this.nextflowMessage()
+  this.minimalInformationMessage()
+}
+
+workflow.onComplete {
+  // Display complete message
+  this.nextflowMessage()
+  this.sarekMessage()
+  this.minimalInformationMessage()
+  log.info "Completed at: " + workflow.complete
+  log.info "Duration    : " + workflow.duration
+  log.info "Success     : " + workflow.success
+  log.info "Exit status : " + workflow.exitStatus
+  log.info "Error report: " + (workflow.errorReport ?: '-')
+}
+
+workflow.onError {
+  // Display error message
+  this.nextflowMessage()
+  this.sarekMessage()
+  log.info "Workflow execution stopped with the following message:"
+  log.info "  " + workflow.errorMessage
+}
