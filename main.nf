@@ -27,10 +27,6 @@ Processes overview:
 
 if (params.help) exit 0, helpMessage()
 
-params.assembly = ''
-params.plasmid = false
-min_contig_length = 1000
-
 // Target coverage for long reads before assembly
 target_sr_number = (params.target_shortread_cov * params.genome_size) / params.shortread_length
 target_lr_length = params.target_longread_cov * params.genome_size
@@ -41,9 +37,11 @@ files = Channel.fromPath(params.pathFile)
     .splitCsv(header: true)
     .view()
 
+// execution modes
+validModes = ['spades_simple', 'spades', 'spades_plasmid', 'canu', 'unicycler', 'flye', 'miniasm', 'all']
 
 // Validate assembly protocol choice:
-if (!(params.assembly in ['spades_sspace', 'spades_links', 'canu', 'unicycler', 'flye', 'miniasm', 'all'])){
+if (!(params.assembly in modes)){
     exit 1, "Invalid assembly protocol: (${params.assembly}) \nMust be one of the following:\n    'canu'\n    'spades_links'\n    'spades_sspace'\n    'unicycler'\n    'miniasm'\n    'flye'\n    'all'"
 }
 
@@ -74,8 +72,6 @@ process seqpurge {
     $PY27  
     SeqPurge -t ${params.cpu} -gc ${id}_readQC.qcml -in1 ${sr1} -in2 ${sr2} -threads ${params.cpu} -out1 sr1.fastq.gz -out2 sr2.fastq.gz
     """
-
-
 }
 
 process sample_shortreads {
@@ -90,8 +86,9 @@ process sample_shortreads {
     
     script:
     """
-    ${SEQTK} sample -s100 ${sr1} ${target_sr_number} > sr1_filt.fastq 
-    ${SEQTK} sample -s100 ${sr2} ${target_sr_number} > sr2_filt.fastq 
+    $PY27
+    seqtk sample -s100 ${sr1} ${target_sr_number} > sr1_filt.fastq 
+    seqtk sample -s100 ${sr2} ${target_sr_number} > sr2_filt.fastq 
     """
 }
 
@@ -106,14 +103,14 @@ process porechop {
     set id, sr1, sr2, file('lr_porechop.fastq') into files_porechop
     set id, lr, val("raw") into files_nanoplot_raw
     
-    // Join multiple longread files if possible 
     script:
+    // Join multiple longread files if possible 
     """
+    $PY36
     cat ${lr} > nanoreads.fastq
-    $PORECHOP -i nanoreads.fastq -t ${params.cpu} -o lr_porechop.fastq
+    porechop -i nanoreads.fastq -t ${params.cpu} -o lr_porechop.fastq
     """
 }
-
 
 process filtlong {
 // Quality filter long reads
@@ -126,11 +123,10 @@ process filtlong {
     set id, sr1, sr2, file("lr_filtlong.fastq") into files_pre_unicycler, files_pre_spades, files_pre_canu, files_pre_miniasm, files_pre_flye,  files_fastqc
     set id, file("lr_filtlong.fastq"), val('filtered') into files_nanoplot_filtered
     
-    
-    
     script:
     """
-    $FILTLONG -1 ${sr1} -2 ${sr2} \
+    $PY36
+    filtlong -1 ${sr1} -2 ${sr2} \
     --min_length 1000 \
     --keep_percent 90 \
     --target_bases  ${target_lr_length} \
@@ -138,12 +134,8 @@ process filtlong {
     """
 }
 
-/*
-*  NanoPlot 
-*  plot read quality and read length distribution for ONT long reads
-*  Creates summary files with read characteristics.
-*/
 process nanoplot {
+// Quality check for nanopore reads and Quality/Length Plots
     tag{id}
     publishDir "${params.outFolder}/${id}_${params.assembly}/nanoplot/", mode: 'copy'
     
@@ -155,13 +147,13 @@ process nanoplot {
     
     script:
     """
-    ${NANOPLOT} -t ${params.cpu} -p ${type}_  --title ${id}_${type} -c darkblue --fastq ${lr}
+    $PY36
+    NanoPlot -t ${params.cpu} -p ${type}_  --title ${id}_${type} -c darkblue --fastq ${lr}
     """
 }
 
-
+/*process fastqc{
 // Create FASTQC quality check on short reads
-process fastqc{
     tag{id}
     
     publishDir "${params.outFolder}/${id}_${params.assembly}/fastQC/", mode: 'copy'
@@ -170,21 +162,17 @@ process fastqc{
     set id, sr1, sr2, lr from files_fastqc
 
     output:
-    file "fastqc/*"
+    file "fastqc/\*"
 
     script: 
     """
     mkdir -p fastqc
     ${FASTQC} ${sr1} ${sr2} -o fastqc
     """
-}
+} */
 
-/*
-* Unicycler - complete bacterial genome assembly pipeline
-*
-* 
-*/
 process unicycler{
+// complete bacterial hybrid assembly pipeline
     tag{id}
     publishDir "${params.outFolder}/${id}_${params.assembly}/unicycler", mode: 'copy'   
    
@@ -200,15 +188,8 @@ process unicycler{
 
     script:
     """ 
-    python3 /mnt/users/ahgrosc1/tools/Unicycler/unicycler-runner.py \
-    -1 ${sr1} -2 ${sr2} -l ${lr}\
-    -o ${id} -t ${params.cpu}\
-    --spades_path ${SPADES}\
-    --racon_path ${RACON}\
-    --pilon_path ${PILON}\
-    --bowtie2_build_path ${BOWTIE2_BUILD}\
-    --bowtie2_path ${BOWTIE2}\
-    --samtools_path ${SAMTOOLS}
+    $PY36
+    unicycler -1 ${sr1} -2 ${sr2} -l ${lr} -o ${id} -t ${params.cpu}
     """
 }
 
@@ -392,11 +373,6 @@ process miniasm{
     """
 }
 
-/*
-* racon consensus tool
-*
-*
-*/
 process racon {
     tag{id}
     publishDir "${params.outFolder}/${id}_${params.assembly}/racon", mode: 'copy'
@@ -415,14 +391,8 @@ process racon {
     """
 }
 
-/* 
-* Flye assembler (former ABruijn) 2018
-*  
-* De novo assembler for long and noisy reads. 
-* Uses an A-Bruijnm graph to find overlaps in non-errorcorrected long reads
-* Includes polisher module and repeat classification and analysis
-*/
 process flye {
+// Assembly step using Flye assembler
     errorStrategy 'ignore'
     tag{id}
     publishDir "${params.outFolder}/${id}_${params.assembly}", mode: 'copy'
@@ -486,6 +456,7 @@ if (params.plasmid) {
 } else {
     assembly_merged = assembly.mix(assembly_gapfiller, assembly_unicycler, assembly_pilon)
 }
+
 /*
 * Length filter trimming of contigs < 2000bp from the final assembly
 * Creates a plot of contig lenghts in the assembly
@@ -533,12 +504,6 @@ process length_filter {
 
 }
 
-complete_status
-    .subscribe onNext: {println("Completed " + it[0] + " assembly for "  + it[1])}, onComplete: {println "Done:"}
-
-workflow.onComplete {
-    println "Hybrid assembly pipeline completed at: $workflow.complete"
-}
 
 /*
 ================================================================================
@@ -554,29 +519,6 @@ def helpMessage() {
   log.info "       nextflow run SciLifeLab/Sarek --sampleDir <Directory> [--step STEP] --genome <Genome>"
   log.info "    --sample <file.tsv>"
   log.info "       Specify a TSV file containing paths to sample files."
-  log.info "    --sampleDir <Directoy>"
-  log.info "       Specify a directory containing sample files."
-  log.info "    --test"
-  log.info "       Use a test sample."
-  log.info "    --step"
-  log.info "       Option to start workflow"
-  log.info "       Possible values are:"
-  log.info "         mapping (default, will start workflow with FASTQ files)"
-  log.info "         recalibrate (will start workflow with non-recalibrated BAM files)"
-  log.info "    --noReports"
-  log.info "       Disable QC tools and MultiQC to generate a HTML report"
-  log.info "    --genome <Genome>"
-  log.info "       Use a specific genome version."
-  log.info "       Possible values are:"
-  log.info "         GRCh37"
-  log.info "         GRCh38 (Default)"
-  log.info "         smallGRCh37 (Use a small reference (Tests only))"
-  log.info "    --onlyQC"
-  log.info "       Run only QC tools and gather reports"
-  log.info "    --help"
-  log.info "       you're reading it"
-  log.info "    --verbose"
-  log.info "       Adds more verbosity to workflow"
 }
 
 def minimalInformationMessage() {
@@ -627,7 +569,6 @@ def startMessage() {
 workflow.onComplete {
   // Display complete message
   this.nextflowMessage()
-  this.sarekMessage()
   this.minimalInformationMessage()
   log.info "Completed at: " + workflow.complete
   log.info "Duration    : " + workflow.duration
@@ -639,7 +580,11 @@ workflow.onComplete {
 workflow.onError {
   // Display error message
   this.nextflowMessage()
-  this.sarekMessage()
   log.info "Workflow execution stopped with the following message:"
   log.info "  " + workflow.errorMessage
+}
+
+def isMode = {
+  // returns whether a given list of arguments contains at least one valid mode
+it.any {modes.contains(it)}
 }
