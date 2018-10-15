@@ -24,6 +24,9 @@ Processes overview:
                        C O N F I G U R A T I O N 
 ------------------------------------------------------------------------------
 */
+// Define valid run modes:
+validModes = ['spades_simple', 'spades', 'spades_plasmid', 'canu', 'unicycler', 'flye', 'miniasm', 'all']
+
 // Check required input parameters
 if (params.help) exit 0, helpMessage()
 if (!params.mode) exit 0, helpMessage()
@@ -32,9 +35,6 @@ if (!params.input) exit 0, helpMessage()
 // Set values from parameters:
 sampleFile = params.input
 modes = params.mode.tokenize(',') 
-
-// Define valid run modes:
-validModes = ['spades_simple', 'spades', 'spades_plasmid', 'canu', 'unicycler', 'flye', 'miniasm', 'all']
 
 // check if mode input is valid
 if (!modes.every{validModes.contains(it)}) {

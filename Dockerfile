@@ -4,10 +4,12 @@
 #   Hybrid Assembly Pipeline   #
 #                              #
 ################################
-
 FROM continuumio/miniconda
 MAINTAINER Caspar Gross <mail@caspar.one>
 LABEL description="contains all the dependencies for hybridAssembly pipeline at github.com/caspargross/hybridAssembly" 
+
+# Install ps
+RUN apt-get update && apt-get install procps
 
 # Set standard shell to bash
 SHELL ["/bin/bash", "-c"]
