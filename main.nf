@@ -24,31 +24,33 @@ Processes overview:
                        C O N F I G U R A T I O N 
 ------------------------------------------------------------------------------
 */
+//Define valid run modes:
+validModes = ['spades_simple', 'spades', 'spades_plasmid', 'canu', 'unicycler', 'flye', 'miniasm', 'all']
+
 
 if (params.help) exit 0, helpMessage()
+if (!params.mode) exit 0, helpMessage()
+
+// check if mode input is valid
+modes = params.mode.tokenize(',')
+if (!modes.every{validModes.contains(it)}) {
+    exit 1,  log.info "Wrong execution mode, should be one of " + validModes
+}
 
 // Target coverage for long reads before assembly
 target_sr_number = (params.target_shortread_cov * params.genome_size) / params.shortread_length
 target_lr_length = params.target_longread_cov * params.genome_size
 
-//inputFiles
+// inputFiles
 files = Channel.fromPath(params.pathFile)
     .ifEmpty {error "Cannot find file with path locations in ${params.files}"}
     .splitCsv(header: true)
     .view()
 
-// execution modes
-validModes = ['spades_simple', 'spades', 'spades_plasmid', 'canu', 'unicycler', 'flye', 'miniasm', 'all']
 
-// Validate assembly protocol choice:
-if (!(params.assembly in modes)){
-    exit 1, "Invalid assembly protocol: (${params.assembly}) \nMust be one of the following:\n    'canu'\n    'spades_links'\n    'spades_sspace'\n    'unicycler'\n    'miniasm'\n    'flye'\n    'all'"
-}
-
-// Shorthands for activations of conda dirs
+// Shorthands for conda environment activations
 PY27 = "source activate ha_py27"
 PY36 = "source activate ha_py36"
-
 
 /* 
 ------------------------------------------------------------------------------
@@ -137,7 +139,7 @@ process filtlong {
 process nanoplot {
 // Quality check for nanopore reads and Quality/Length Plots
     tag{id}
-    publishDir "${params.outFolder}/${id}_${params.assembly}/nanoplot/", mode: 'copy'
+    publishDir "${params.outDir}/${id}_${params.assembly}/nanoplot/", mode: 'copy'
     
     input:
     set id, lr, type from files_nanoplot_raw .mix(files_nanoplot_filtered)
@@ -156,7 +158,7 @@ process nanoplot {
 // Create FASTQC quality check on short reads
     tag{id}
     
-    publishDir "${params.outFolder}/${id}_${params.assembly}/fastQC/", mode: 'copy'
+    publishDir "${params.outDir}/${id}_${params.assembly}/fastQC/", mode: 'copy'
 
     input: 
     set id, sr1, sr2, lr from files_fastqc
@@ -174,7 +176,7 @@ process nanoplot {
 process unicycler{
 // complete bacterial hybrid assembly pipeline
     tag{id}
-    publishDir "${params.outFolder}/${id}_${params.assembly}/unicycler", mode: 'copy'   
+    publishDir "${params.outDir}/${id}_${params.assembly}/unicycler", mode: 'copy'   
    
     input:
     set id, sr1, sr2, lr from files_pre_unicycler
@@ -200,7 +202,7 @@ process unicycler{
 */
 process spades{
     tag{id}
-    publishDir "${params.outFolder}/${id}_${params.assembly}", mode: 'copy'   
+    publishDir "${params.outDir}/${id}_${params.assembly}", mode: 'copy'   
 
     input:
     set id, forward, reverse, longread from files_pre_spades  
@@ -325,7 +327,7 @@ process canu_parameters {
 
 process canu{
     tag{id}
-    publishDir "${params.outFolder}/${id}_${params.assembly}/canu", mode: 'copy'
+    publishDir "${params.outDir}/${id}_${params.assembly}/canu", mode: 'copy'
 
     input:
     set id, sr1, sr2, lr from files_pre_canu
@@ -353,7 +355,7 @@ process canu{
 */
 process miniasm{
     tag{id}
-    publishDir "${params.outFolder}/${id}_${params.assembly}/miniasm", mode: 'copy'
+    publishDir "${params.outDir}/${id}_${params.assembly}/miniasm", mode: 'copy'
 
     input:
     set id, sr1, sr2, lr from files_pre_miniasm
@@ -375,7 +377,7 @@ process miniasm{
 
 process racon {
     tag{id}
-    publishDir "${params.outFolder}/${id}_${params.assembly}/racon", mode: 'copy'
+    publishDir "${params.outDir}/${id}_${params.assembly}/racon", mode: 'copy'
     
     input:
     set id, sr1, sr2, lr, assembly from files_noconsensus
@@ -395,7 +397,7 @@ process flye {
 // Assembly step using Flye assembler
     errorStrategy 'ignore'
     tag{id}
-    publishDir "${params.outFolder}/${id}_${params.assembly}", mode: 'copy'
+    publishDir "${params.outDir}/${id}_${params.assembly}", mode: 'copy'
 
     input:
     set id, sr1, sr2, lr from files_pre_flye
@@ -462,7 +464,7 @@ if (params.plasmid) {
 * Creates a plot of contig lenghts in the assembly
 */
 process length_filter {
-    publishDir "${params.outFolder}/${id}_${params.assembly}/", mode: 'copy'
+    publishDir "${params.outDir}/${id}_${params.assembly}/", mode: 'copy'
 
     input:
     set id, sr1, sr2, lr, contigs, type from assembly_merged
@@ -513,12 +515,19 @@ process length_filter {
 
 def helpMessage() {
   // Display help message
-  this.hybridassemblyMessage()
+  // this.pipelineMessage()
   log.info "    Usage:"
-  log.info "       nextflow run caspargross/hybridAssembly --samples <file[.csv]>"
-  log.info "       nextflow run SciLifeLab/Sarek --sampleDir <Directory> [--step STEP] --genome <Genome>"
-  log.info "    --sample <file.tsv>"
+  log.info "       nextflow run caspargross/hybridAssembly --samples <file.csv> --mode [mode] [options] "
+  log.info "    --input <file.tsv>"
   log.info "       Specify a TSV file containing paths to sample files."
+  log.info "    --mode ${validModes}"
+  log.info "       Default: none, choose one or multiple modes to run the pipeline "
+  log.info:   
+}
+
+def grabRevision() {
+  // Return the same string executed from github or not
+  return workflow.revision ?: workflow.commitId ?: workflow.scriptId.substring(0,10)
 }
 
 def minimalInformationMessage() {
@@ -557,7 +566,7 @@ def nextflowMessage() {
 
 def pipelineMessage() {
   // Display hybridAssembly info  message
-  log.info "hybridAssembly Pipeline ~ ${workflow.manifest.version} - " + this.grabRevision() + (workflow.commitId ? " [${workflow.commitId}]" : "")
+  log.info "hybridAssembly Pipeline ~  version ${workflow.manifest.version} - revision " + this.grabRevision() + (workflow.commitId ? " [${workflow.commitId}]" : "")
 }
 
 def startMessage() {
