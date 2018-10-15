@@ -67,6 +67,7 @@ dependencies:
   - quast=5.0.0=py27pl526ha92aebf_1
   - rgi=4.0.3=py27ha92aebf_3
   - samtools=1.9=h46bd0b3_0
+  - seqtk=1.3=ha92aebf_0
   - simplejson=3.8.1=py27_0
   - biopython=1.72=py27_0
   - boost=1.64.0=py27_4
@@ -165,5 +166,5 @@ dependencies:
     - networkx==2.1
     - poretools==0.6.0
     - seaborn==0.8.1
-prefix: /envs/ha_py27
+prefix: /mnt/users/ahgrosc1/tools/miniconda3/envs/ha_py27
 
