@@ -8,6 +8,9 @@ FROM continuumio/miniconda
 MAINTAINER Caspar Gross <mail@caspar.one>
 LABEL description="contains all the dependencies for hybridAssembly pipeline at github.com/caspargross/hybridAssembly" 
 
+# Set standard shell to bash
+SHELL ["/bin/bash", "-c"]
+
 # Install basic packages into docker container
 RUN apt-get update && apt-get install procps bc gawk 
 
@@ -26,9 +29,6 @@ WORKDIR /data
 
 # Define commonly used JAVA_HOME variable
 ENV JAVA_HOME /usr/lib/jvm/java-8-oracle
-
-# Set standard shell to bash
-SHELL ["/bin/bash", "-c"]
 
 # Install conda environments
 COPY envs/ha_py36.yml /
