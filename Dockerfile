@@ -4,10 +4,9 @@
 #   Hybrid Assembly Pipeline   #
 #                              #
 ################################
-FROM continuumio/miniconda
+FROM continuumio/miniconda3
 MAINTAINER Caspar Gross <mail@caspar.one>
 LABEL description="contains all the dependencies for hybridAssembly pipeline at github.com/caspargross/hybridAssembly" 
-
 
 # Install Java.
 RUN \
@@ -15,29 +14,21 @@ RUN \
   apt-get install -y openjdk-8-jre gawk bc procps && \
   rm -rf /var/lib/apt/lists/*
 
-# Define working directory.
-WORKDIR /data
+# Set standard shell to bash
+SHELL ["/bin/bash", "-ce"]
 
 # Define commonly used JAVA_HOME variable
 ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64
 
-# Define default command.
-CMD ["bash"]
 # Define working directory.
-WORKDIR /data
+# WORKDIR /data
 
-# Define commonly used JAVA_HOME variable
-ENV JAVA_HOME /usr/lib/jvm/java-8-oracle
+# Install conda envs
+ADD envs/ha_py36.yml /tmp/ha_py36.yml
+RUN conda env create -f /tmp/ha_py36.yml -q && conda clean -a
 
-# Set standard shell to bash
-SHELL ["/bin/bash", "-c"]
-
-# Install conda environments
-COPY envs/ha_py36.yml /
-RUN conda env create -f /ha_py36.yml -q && conda clean -a
-
-COPY envs/ha_py27.yml /
-RUN conda env create -f /ha_py27.yml -q && conda clean -a
+ADD envs/ha_py27.yml /tmp/ha_py27.yml
+RUN conda env create -f /tmp/ha_py27.yml -q && conda clean -a
 
 # Download checkM database
 RUN mkdir -p /data && cd /data
@@ -45,4 +36,3 @@ RUN wget -q -O checkm_data.tar.gz https://data.ace.uq.edu.au/public/CheckM_datab
 
 # Download CARD-Antibiotic resistance database
 RUN wget -q -O card-data.tar.bz2 https://card.mcmaster.ca/latest/data && tar xfvj card-data.tar.bz2 && bash && source activate ha_py27 && rgi load --afile card.json
-
