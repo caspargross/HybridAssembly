@@ -24,14 +24,15 @@ Processes overview:
                        C O N F I G U R A T I O N 
 ------------------------------------------------------------------------------
 */
-// Check required input parameters
+// Check required input  parameters
 if (params.help) exit 0, helpMessage()
 if (!params.mode) exit 0, helpMessage()
 if (!params.input) exit 0, helpMessage()
 
-// Set values from parameters:
+// Seti values from parameters:i
 sampleFile = params.input
 modes = params.mode.tokenize(',') 
+
 
 // Define valid run modes:
 validModes = ['spades_simple', 'spades', 'spades_plasmid', 'canu', 'unicycler', 'flye', 'miniasm', 'all']
@@ -51,8 +52,8 @@ files = Channel.fromPath(sampleFile)
 PY27 = "source activate ha_py27"
 PY36 = "source activate ha_py36"
 
-startMessage()
 
+startMessage()
 /* 
 ------------------------------------------------------------------------------
                            P R O C E S S E S 
@@ -219,10 +220,10 @@ process spades{
 
 
     when:
-    isMode(['spades','spades_simple','spades_plasmid','all'])
+    params.assembly in ['spades_sspace','spades_links','all']
      
     script:
-    if (isMode(["spades_plasmid"])) 
+    if ( params.plasmid == true) 
         """
         ${SPADES} -t ${params.cpu} -m ${params.mem} \
         --phred-offset 33 --careful \
@@ -261,7 +262,7 @@ process sspace_scaffolding{
     set data_id, forward, reverse, longread, file("sspace/scaffolds.fasta"), val('spades_sspace') into files_sspace 
     
     when:
-    isMode(['spades','all'])
+    params.assembly in ['spades_sspace','all'] && !params.plasmid
 
     script:
     """
@@ -284,7 +285,7 @@ process links_scaffolding{
     set data_id, forward, reverse, longread, file("${data_id}_links.fasta"), val('spades_links') into files_links
 
     when:
-    isMode(['spades', 'all'])
+    params.assembly in ['spades_links', 'all'] && !params.plasmid
     
     script:
     """
@@ -458,8 +459,11 @@ process pilon{
 
 // Merge channel output from different assembly paths
 assembly=Channel.create()
-assembly_merged = assembly.mix(assembly_gapfiller, assembly_unicycler, assembly_pilon)
-
+if (params.plasmid) {
+    assembly_merged = assembly.mix(files_spades_plasmid, assembly_unicycler, assembly_pilon)
+} else {
+    assembly_merged = assembly.mix(assembly_gapfiller, assembly_unicycler, assembly_pilon)
+}
 
 /*
 * Length filter trimming of contigs < 2000bp from the final assembly
@@ -580,7 +584,7 @@ def pipelineMessage() {
 def startMessage() {
   // Display start message
   // this.nextflowMessage()
-  // this.asciiArt()
+  this.asciiArt()
   this.minimalInformationMessage()
 }
 
@@ -597,7 +601,7 @@ workflow.onComplete {
 
 workflow.onError {
   // Display error message
-  //this.nextflowMessage()
+  this.nextflowMessage()
   log.info "Workflow execution stopped with the following message:"
   log.info "  " + workflow.errorMessage
 }
