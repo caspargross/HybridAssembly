@@ -8,8 +8,24 @@ FROM continuumio/miniconda
 MAINTAINER Caspar Gross <mail@caspar.one>
 LABEL description="contains all the dependencies for hybridAssembly pipeline at github.com/caspargross/hybridAssembly" 
 
-# Install ps
-RUN apt-get update && apt-get install procps
+# Install basic packages into docker container
+RUN apt-get update && apt-get install procps bc gawk 
+
+# Install java
+# Install Java.
+RUN \
+  echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | debconf-set-selections && \
+  add-apt-repository -y ppa:webupd8team/java && \
+  apt-get update && \
+  apt-get install -y oracle-java8-installer && \
+  rm -rf /var/lib/apt/lists/* && \
+  rm -rf /var/cache/oracle-jdk8-installer
+
+# Define working directory.
+WORKDIR /data
+
+# Define commonly used JAVA_HOME variable
+ENV JAVA_HOME /usr/lib/jvm/java-8-oracle
 
 # Set standard shell to bash
 SHELL ["/bin/bash", "-c"]
