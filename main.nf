@@ -24,34 +24,43 @@ Processes overview:
                        C O N F I G U R A T I O N 
 ------------------------------------------------------------------------------
 */
-//Define valid run modes:
+// Check required input  parameters
+if (params.help) exit 0, helpMessage()
+if (!params.mode & !params.test) exit 0, helpMessage()
+if (!params.input & !params.test ) exit 0, helpMessage()
+
+// Set parameters for test run:
+sampleFile =''
+modes=[]
+if (params.test) {
+    log.info "TEST RUN"
+    sampleFile = workflow.projectDir+"/samples_test.tsv"
+    modes = ['all']
+} else {
+    sampleFile = params.input
+    modes = params.mode.tokenize(',') 
+}
+
+// Define valid run modes:
 validModes = ['spades_simple', 'spades', 'spades_plasmid', 'canu', 'unicycler', 'flye', 'miniasm', 'all']
 
-
-if (params.help) exit 0, helpMessage()
-if (!params.mode) exit 0, helpMessage()
-
 // check if mode input is valid
-modes = params.mode.tokenize(',')
 if (!modes.every{validModes.contains(it)}) {
     exit 1,  log.info "Wrong execution mode, should be one of " + validModes
 }
 
-// Target coverage for long reads before assembly
-target_sr_number = (params.target_shortread_cov * params.genome_size) / params.shortread_length
-target_lr_length = params.target_longread_cov * params.genome_size
-
 // inputFiles
-files = Channel.fromPath(params.pathFile)
-    .ifEmpty {error "Cannot find file with path locations in ${params.files}"}
+files = Channel.fromPath(sampleFile)
+    .ifEmpty {exit 1, log.info "Cannot find file with sample locations in ${sampleFile}"}
     .splitCsv(header: true)
     .view()
-
 
 // Shorthands for conda environment activations
 PY27 = "source activate ha_py27"
 PY36 = "source activate ha_py36"
 
+
+startMessage()
 /* 
 ------------------------------------------------------------------------------
                            P R O C E S S E S 
@@ -89,8 +98,10 @@ process sample_shortreads {
     script:
     """
     $PY27
-    seqtk sample -s100 ${sr1} ${target_sr_number} > sr1_filt.fastq 
-    seqtk sample -s100 ${sr2} ${target_sr_number} > sr2_filt.fastq 
+    readLength=(awk "NR % 4 == 2 {s += length(${1}); t++} END {print s/t}" testReads_illumina_S1.fastq)
+    srNumber=(echo "($params.genomeSize * $params.targetShortReadCov)/$readLength)" | bc
+    seqtk sample -s100 ${sr1} ${srNumber} > sr1_filt.fastq 
+    seqtk sample -s100 ${sr2} ${srNumber} > sr2_filt.fastq 
     """
 }
 
@@ -114,6 +125,8 @@ process porechop {
     """
 }
 
+
+target_lr_length = params.targetLongReadCov * params.genomeSize
 process filtlong {
 // Quality filter long reads
     tag{id}
@@ -318,7 +331,7 @@ process canu_parameters {
 
     """
     echo \
-    'genomeSize=$params.genome_size 
+    'genomeSize=$params.genomeSize 
     minReadLength=1000
     maxMemory=$params.mem 
     maxThreads=$params.cpu' > canu_settings.txt
@@ -414,7 +427,7 @@ process flye {
     script:
     """
     ${FLYE} --nano-raw ${lr} --out-dir flye \
-    --genome-size ${params.genome_size} --threads ${params.cpu} -i 0
+    --genome-size ${params.genomeSize} --threads ${params.cpu} -i 0
     cp flye/2-repeat/graph_final.gfa flye/${id}_flye_graph.gfa
     """
 }
@@ -516,14 +529,33 @@ process length_filter {
 def helpMessage() {
   // Display help message
   // this.pipelineMessage()
-  log.info "    Usage:"
-  log.info "       nextflow run caspargross/hybridAssembly --samples <file.csv> --mode [mode] [options] "
+  log.info "  Usage:"
+  log.info "       nextflow run caspargross/hybridAssembly --samples <file.csv> --mode <mode1,mode2...> [options] "
   log.info "    --input <file.tsv>"
   log.info "       Specify a TSV file containing paths to sample files."
   log.info "    --mode ${validModes}"
   log.info "       Default: none, choose one or multiple modes to run the pipeline "
-  log.info:   
+  log.info " "
+  log.info "  Parameters: "
+  log.info "    --genomeSize <int> (Default 5300000)"
+  log.info "    Expected genome size in bases."
+  log.info "    --targetShortReadCov <int> (Default: 60)"
+  log.info "    Short reads will be downsampled to a maximum of this coverage"
+  log.info "    --targetLongReadCov <int> (Default: 60)"
+  log.info "    Long reads will be downsampled to a maximum of this coverage"
+  log.info "          "
+  log.info "  Options:"
+  log.info "    --shortRead"
+  log.info "      Uses only short reads. Only 'spades_simple', 'spades_plasmid' and 'unicycler' mode."
+  log.info "    --longRead"
+  log.info "      Uses long read only. Only 'unicycler', 'miniasm', 'canu' and 'flye'"
+  log.info "    --fast"
+  log.info "      Skips some steps to run faster. Only one cycle of error correction'" 
+  log.info "    --test"
+  log.info "      Uses small test dataset to check dependencies and settings (overrides input/mode)"
 }
+
+
 
 def grabRevision() {
   // Return the same string executed from github or not
@@ -532,31 +564,18 @@ def grabRevision() {
 
 def minimalInformationMessage() {
   // Minimal information message
-  log.info "Command Line: " + workflow.commandLine
-  log.info "Profile     : " + workflow.profile
-  log.info "Project Dir : " + workflow.projectDir
-  log.info "Launch Dir  : " + workflow.launchDir
-  log.info "Work Dir    : " + workflow.workDir
-  log.info "Cont Engine : " + workflow.containerEngine
-  log.info "Out Dir     : " + params.outDir
-  log.info "TSV file    : ${tsvFile}"
-  log.info "Genome      : " + params.genome
-  log.info "Genome_base : " + params.genome_base
-  log.info "Step        : " + step
+  log.info "Command Line  : " + workflow.commandLine
+  log.info "Profile       : " + workflow.profile
+  log.info "Project Dir   : " + workflow.projectDir
+  log.info "Launch Dir    : " + workflow.launchDir
+  log.info "Work Dir      : " + workflow.workDir
+  log.info "Cont Engine   : " + workflow.containerEngine
+  log.info "Out Dir       : " + params.outDir
+  log.info "Sample file   : " + sampleFile
+  log.info "Expected size : " + params.genomeSize
+  log.info "Target lr cov : " + params.targetLongReadCov
+  log.info "Target sr civ : " + params.targetShortReadCov
   log.info "Containers"
-  if (params.repository != "") log.info "  Repository   : " + params.repository
-  if (params.containerPath != "") log.info "  ContainerPath: " + params.containerPath
-  log.info "  Tag          : " + params.tag
-  log.info "Reference files used:"
-  log.info "  dbsnp       :\n\t" + referenceMap.dbsnp
-  log.info "\t" + referenceMap.dbsnpIndex
-  log.info "  genome      :\n\t" + referenceMap.genomeFile
-  log.info "\t" + referenceMap.genomeDict
-  log.info "\t" + referenceMap.genomeIndex
-  log.info "  bwa indexes :\n\t" + referenceMap.bwaIndex.join(',\n\t')
-  log.info "  intervals   :\n\t" + referenceMap.intervals
-  log.info "  knownIndels :\n\t" + referenceMap.knownIndels.join(',\n\t')
-  log.info "\t" + referenceMap.knownIndelsIndex.join(',\n\t')
 }
 
 def nextflowMessage() {
@@ -571,7 +590,8 @@ def pipelineMessage() {
 
 def startMessage() {
   // Display start message
-  this.nextflowMessage()
+  // this.nextflowMessage()
+  this.asciiArt()
   this.minimalInformationMessage()
 }
 
