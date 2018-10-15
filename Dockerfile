@@ -12,9 +12,8 @@ LABEL description="contains all the dependencies for hybridAssembly pipeline at 
 SHELL ["/bin/bash", "-c"]
 
 # Install basic packages into docker container
-RUN apt-get update && apt-get install procps bc gawk 
+RUN 'apt-get update' && apt-get install procps bc gawk 
 
-# Install java
 # Install Java.
 RUN \
   echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | debconf-set-selections && \
