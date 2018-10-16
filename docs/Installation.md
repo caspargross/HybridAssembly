@@ -58,7 +58,7 @@ echo "checkm_data" | checkm data setRoot "checkm_data"
 source deactivate ha_py27
 ```
 
-Download and include CARD-Antibiotic resistance database
+Download and include CARD-Antibiotic resistance database for [rgi](https://card.mcmaster.ca/analyze/rgi)
 
 ```
 wget -q -O card-data.tar.bz2 https://card.mcmaster.ca/latest/data
