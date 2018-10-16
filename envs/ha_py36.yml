@@ -16,7 +16,7 @@ dependencies:
   - minimap2=2.12=ha92aebf_0
   - nanoget=1.7.4=py36_0
   - nanomath=0.21.0=py36_2
-  - nanoplot=1.18.1=py36_1
+  - nanoplot=1.18.2=py36_1
   - nanoplotter=1.0.0=py36_2
   - pauvre=0.1.86=py_1
   - perl-archive-tar=2.18=pl526_3
