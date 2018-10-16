@@ -50,7 +50,6 @@ PY36 = "source activate ha_py36"
 
 startMessage()
 
-
 /* 
 ------------------------------------------------------------------------------
                            P R O C E S S E S 
@@ -601,7 +600,7 @@ workflow.onError {
   log.info "  " + workflow.errorMessage
 }
 
-def isMode = {
+def isMode(it) {
   // returns whether a given list of arguments contains at least one valid mode
 it.any {modes.contains(it)}
 }
@@ -630,7 +629,6 @@ def extractFastq(tsvFile) {
     [id, sr1, sr2, lr]
     }
 }
-
 
 // Check file extension
   static def checkFileExtension(it, extension) {
