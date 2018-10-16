@@ -59,6 +59,7 @@ startMessage()
 process seqpurge {
 // Trim adapters on short read files
     tag{id}
+    publishDir "${params.outDir}/${id}/qc_shortread/", mode: 'copy'
     
     input:
     set id, sr1, sr2, lr from files
@@ -95,7 +96,7 @@ process sample_shortreads {
 }
 
    
-process porechop {
+process porechop { 
 // Trim adapter sequences on long read nanopore files
     tag{id}
         
@@ -125,7 +126,7 @@ process filtlong {
     set id, sr1, sr2, lr from files_porechop
     
     output:
-    set id, sr1, sr2, file("lr_filtlong.fastq") into files_pre_unicycler, files_pre_spades, files_pre_canu, files_pre_miniasm, files_pre_flye,  files_fastqc
+    set id, sr1, sr2, file("lr_filtlong.fastq") into files_pre_unicycler, files_pre_spades, files_pre_spades_plasmid, files_pre_canu, files_pre_miniasm, files_pre_flye
     set id, file("lr_filtlong.fastq"), val('filtered') into files_nanoplot_filtered
     
     script:
@@ -142,7 +143,7 @@ process filtlong {
 process nanoplot {
 // Quality check for nanopore reads and Quality/Length Plots
     tag{id}
-    publishDir "${params.outDir}/${id}_${params.assembly}/nanoplot/", mode: 'copy'
+    publishDir "${params.outDir}/${id}/qc_longread/${type}/", mode: 'copy'
     
     input:
     set id, lr, type from files_nanoplot_raw .mix(files_nanoplot_filtered)
@@ -179,7 +180,7 @@ process nanoplot {
 process unicycler{
 // complete bacterial hybrid assembly pipeline
     tag{id}
-    publishDir "${params.outDir}/${id}_${params.assembly}/unicycler", mode: 'copy'   
+    publishDir "${params.outDir}/${id}/assembly_unicycler", mode: 'copy'   
    
     input:
     set id, sr1, sr2, lr from files_pre_unicycler
@@ -189,7 +190,7 @@ process unicycler{
     file("${id}/*")
 
     when:
-    params.assembly in ['unicycler', 'all']
+    isMode(['unicycler', 'all'])
 
     script:
     """ 
@@ -198,52 +199,66 @@ process unicycler{
     """
 }
 
-/*
-* SPAades assembler
-*
-*
-*/
 process spades{
+// Spades Assembler
     tag{id}
-    publishDir "${params.outDir}/${id}_${params.assembly}", mode: 'copy'   
+    publishDir "${params.outDir}/${id}/assembly_spades", mode: 'copy'   
 
     input:
     set id, forward, reverse, longread from files_pre_spades  
 
     output:
-    set id, forward, reverse, longread, file("spades/scaffolds.fasta"), val('spades_plasmid') into files_spades_sspace, files_spades_links, files_spades_plasmid 
+    set id, forward, reverse, longread, file("spades/scaffolds.fasta"), val('spades_plasmid') into files_spades_sspace, files_spades_links 
     file("spades/scaffolds.fasta")
     file("spades/${id}_spades_graph.gfa")
 
 
     when:
-    isMode(['spades','spades_simple','spades_plasmid','all'])
+    isMode(['spades','spades_simple','all'])
      
     script:
-    if (isMode(["spades_plasmid"])) 
-        """
-        ${SPADES} -t ${params.cpu} -m ${params.mem} \
-        --phred-offset 33 --careful \
-        --pe1-1 ${forward} \
-        --pe1-2 ${reverse} \
-        --nanopore ${longread} \
-        --plasmid \
-        -o spades
-        cp spades/assembly_graph_with_scaffolds.gfa spades/${id}_spades_graph.gfa
-        """
-    else  
-        """
-        ${SPADES} -t ${params.cpu} -m ${params.mem} \
-        --phred-offset 33 --careful \
-        --pe1-1 ${forward} \
-        --pe1-2 ${reverse} \
-        --nanopore ${longread} \
-        -o spades
-        cp spades/assembly_graph_with_scaffolds.gfa spades/${id}_spades_graph.gfa
-        """
+    """
+    $PY36
+    spades.py -t ${params.cpu} -m ${params.mem} \
+    --phred-offset 33 --careful \
+    --pe1-1 ${forward} \
+    --pe1-2 ${reverse} \
+    --nanopore ${longread} \
+    -o spades
+    cp spades/assembly_graph_with_scaffolds.gfa spades/${id}_spades_graph.gfa
+    """
 }
 
 
+process spades_plasmid{
+// Spades Assembler
+    tag{id}
+    publishDir "${params.outDir}/${id}/assembly_spades_plasmid${params.assembly}", mode: 'copy'   
+
+    input:
+    set id, forward, reverse, longread from files_pre_spades_plasmid
+
+    output:
+    set id, forward, reverse, longread, file("spades/scaffolds.fasta"), val('spades_plasmid') into files_spades_plasmid 
+    file("spades/scaffolds.fasta")
+    file("spades/${id}_spades_graph.gfa")
+
+
+    when:
+    isMode(['spades_plasmid','all'])
+     
+    script:
+    """
+    ${SPADES} -t ${params.cpu} -m ${params.mem} \
+    --phred-offset 33 --careful \
+    --pe1-1 ${forward} \
+    --pe1-2 ${reverse} \
+    --nanopore ${longread} \
+    --plasmid \
+    -o spades
+    cp spades/assembly_graph_with_scaffolds.gfa spades/${id}_spades_graph.gfa
+    """
+}
 /*
 *  SSPACE scaffolder 
 *
