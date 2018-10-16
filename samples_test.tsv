@@ -1,2 +1,2 @@
 id	sr1	sr2	lr
-testSet	testReads/testReads_illumina_S1.fastz	testReads/testReads_illumina_S2.fastq.gz	testReads/testReads_nanopore.fastq.gz
+testSet	testReads/testReads_illumina_S1.fastq.gz	testReads/testReads_illumina_S2.fastq.gz	testReads/testReads_nanopore.fastq.gz

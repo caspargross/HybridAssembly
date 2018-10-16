@@ -4,7 +4,7 @@
 ===============================================================================
    M I C R O B I A L   H Y B R I D   A S S E M B L Y   P I P E L I N E 
 ===============================================================================
-Nextflow pipeline for hybrid assembly, quality check and plasmid finding
+ouextflow pipeline for hybrid assembly, quality check and plasmid finding
 of bacterial genomes.
 -------------------------------------------------------------------------------
 @ Author
@@ -33,7 +33,7 @@ if (!params.mode) exit 0, helpMessage()
 if (!params.input) exit 0, helpMessage()
 
 // Set values from parameters:
-sampleFile = params.input
+sampleFile = file(params.input)
 modes = params.mode.tokenize(',') 
 
 // check if mode input is valid
@@ -41,17 +41,15 @@ if (!modes.every{validModes.contains(it)}) {
     exit 1,  log.info "Wrong execution mode, should be one of " + validModes
 }
 
-// inputFiles
-files = Channel.fromPath(sampleFile)
-    .ifEmpty {exit 1, log.info "Cannot find file with sample locations in ${sampleFile}"}
-    .splitCsv(header: true)
-    .view()
+// assign Channel to inputFiles
+files = extractFastq(sampleFile);
 
 // Shorthands for conda environment activations
 PY27 = "source activate ha_py27"
 PY36 = "source activate ha_py36"
 
 startMessage()
+
 
 /* 
 ------------------------------------------------------------------------------
@@ -73,7 +71,7 @@ process seqpurge {
     script:
     """
     $PY27  
-    SeqPurge -t ${params.cpu} -gc ${id}_readQC.qcml -in1 ${sr1} -in2 ${sr2} -threads ${params.cpu} -out1 sr1.fastq.gz -out2 sr2.fastq.gz
+    SeqPurge -in1 ${sr1} -in2 ${sr2} -threads ${params.cpu} -out1 sr1.fastq.gz -out2 sr2.fastq.gz -qc ${id}_readQC.qcml 
     """
 }
 
@@ -87,16 +85,17 @@ process sample_shortreads {
     output:
     set id, file('sr1_filt.fastq'), file('sr2_filt.fastq'), lr into files_filtered
     
-    script:
-    """
-    $PY27
-    readLength=(awk "NR % 4 == 2 {s += length(${1}); t++} END {print s/t}" testReads_illumina_S1.fastq)
-    srNumber=(echo "($params.genomeSize * $params.targetShortReadCov)/$readLength)" | bc
-    seqtk sample -s100 ${sr1} ${srNumber} > sr1_filt.fastq 
-    seqtk sample -s100 ${sr2} ${srNumber} > sr2_filt.fastq 
-    """
+    shell:
+    '''
+    !{PY27}
+    readLength=$(zcat !{sr1} | awk 'NR % 4 == 2 {s += length($1); t++} END {print s/t}')
+    srNumber=$(echo "(!{params.genomeSize} * !{params.targetShortReadCov})/${readLength}" | bc)
+    seqtk sample -s100 !{sr1} ${srNumber} > sr1_filt.fastq 
+    seqtk sample -s100 !{sr2} ${srNumber} > sr2_filt.fastq 
+    '''
 }
 
+   
 process porechop {
 // Trim adapter sequences on long read nanopore files
     tag{id}
@@ -586,8 +585,8 @@ def startMessage() {
 
 workflow.onComplete {
   // Display complete message
-  this.nextflowMessage()
-  this.minimalInformationMessage()
+  // this.nextflowMessage()
+  // this.minimalInformationMessage()
   log.info "Completed at: " + workflow.complete
   log.info "Duration    : " + workflow.duration
   log.info "Success     : " + workflow.success
@@ -605,4 +604,35 @@ workflow.onError {
 def isMode = {
   // returns whether a given list of arguments contains at least one valid mode
 it.any {modes.contains(it)}
+}
+
+static def returnFile(it) {
+// Return file if it exists
+    if (!file(it).exists()) exit 1, "Missing file in TSV file: ${it}, see --help for more information"
+    return file(it)
+}
+
+def extractFastq(tsvFile) {
+  // Extracts Read Files from TSV
+  Channel.from(tsvFile)
+  .ifEmpty {exit 1, log.info "Cannot find TSV file ${tsvFile}"}
+  .splitCsv(sep:'\t', skip: 1)
+  .map { row ->
+    def id = row[0]
+    def sr1 = returnFile(row[1])
+    def sr2 = returnFile(row[2])
+    def lr = returnFile(row[3])
+    
+    checkFileExtension(sr1, ".fastq.gz")
+    checkFileExtension(sr2, ".fastq.gz")
+    checkFileExtension(lr, ".fastq.gz")
+   
+    [id, sr1, sr2, lr]
+    }
+}
+
+
+// Check file extension
+  static def checkFileExtension(it, extension) {
+    if (!it.toString().toLowerCase().endsWith(extension.toLowerCase())) exit 1, "File: ${it} has the wrong extension: ${extension} see --help for more information"
 }
