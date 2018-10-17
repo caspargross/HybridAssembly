@@ -59,7 +59,7 @@ startMessage()
 process seqpurge {
 // Trim adapters on short read files
     tag{id}
-    publishDir "${params.outDir}/${id}/qc_shortread/", mode: 'copy'
+    publishDir "${params.outDir}/${id}/01_qc_shortread/", mode: 'copy'
     
     input:
     set id, sr1, sr2, lr from files
@@ -143,7 +143,7 @@ process filtlong {
 process nanoplot {
 // Quality check for nanopore reads and Quality/Length Plots
     tag{id}
-    publishDir "${params.outDir}/${id}/qc_longread/${type}/", mode: 'copy'
+    publishDir "${params.outDir}/${id}/01_qc_longread/${type}/", mode: 'copy'
     
     input:
     set id, lr, type from files_nanoplot_raw .mix(files_nanoplot_filtered)
@@ -180,7 +180,7 @@ process nanoplot {
 process unicycler{
 // complete bacterial hybrid assembly pipeline
     tag{id}
-    publishDir "${params.outDir}/${id}/assembly_unicycler", mode: 'copy'   
+    publishDir "${params.outDir}/${id}/02_assembly_unicycler", mode: 'copy'   
    
     input:
     set id, sr1, sr2, lr from files_pre_unicycler
@@ -200,17 +200,17 @@ process unicycler{
 }
 
 process spades{
-// Spades Assembler
+// Spades Assembler running normal configuration
     tag{id}
-    publishDir "${params.outDir}/${id}/assembly_spades", mode: 'copy'   
+    publishDir "${params.outDir}/${id}/02_assembly_spades", mode: 'copy'   
 
     input:
-    set id, forward, reverse, longread from files_pre_spades  
+    set id, sr1, sr2, longread from files_pre_spades  
 
     output:
-    set id, forward, reverse, longread, file("spades/scaffolds.fasta"), val('spades_plasmid') into files_spades_sspace, files_spades_links 
-    file("spades/scaffolds.fasta")
-    file("spades/${id}_spades_graph.gfa")
+    set id, sr1, sr2, longread, file("spades/scaffolds.fasta"), val('spades_plasmid') into files_spades_links, files_spades_simple 
+    file("spades/${id}_assembly_spades.fasta")
+    file("spades/${id}_graph_spades.gfa")
 
 
     when:
@@ -221,27 +221,28 @@ process spades{
     $PY36
     spades.py -t ${params.cpu} -m ${params.mem} \
     --phred-offset 33 --careful \
-    --pe1-1 ${forward} \
-    --pe1-2 ${reverse} \
+    --pe1-1 ${sr1} \
+    --pe1-2 ${sr2} \
     --nanopore ${longread} \
     -o spades
-    cp spades/assembly_graph_with_scaffolds.gfa spades/${id}_spades_graph.gfa
+    cp spades/assembly_graph_with_scaffolds.gfa spades/${id}_graph_spades.gfa
+    cp spades/assembly.fasta spades/${id}_assembly_spades.fasta
     """
 }
 
 
 process spades_plasmid{
-// Spades Assembler
+// Spades Assembler running plasmid only configuration
     tag{id}
-    publishDir "${params.outDir}/${id}/assembly_spades_plasmid${params.assembly}", mode: 'copy'   
+    publishDir "${params.outDir}/${id}/02_assembly_spades_plasmid}", mode: 'copy'   
 
     input:
-    set id, forward, reverse, longread from files_pre_spades_plasmid
+    set id, sr1, sr2, lr from files_pre_spades_plasmid
 
     output:
-    set id, forward, reverse, longread, file("spades/scaffolds.fasta"), val('spades_plasmid') into files_spades_plasmid 
-    file("spades/scaffolds.fasta")
-    file("spades/${id}_spades_graph.gfa")
+    set id, sr1, sr2, lr, file("spades/scaffolds.fasta"), val('spades_plasmid') into files_spades_plasmid 
+    file("spades/${id}_assembly_spades.fasta")
+    file("spades/${id}_graph_spades.gfa")
 
 
     when:
@@ -249,88 +250,62 @@ process spades_plasmid{
      
     script:
     """
-    ${SPADES} -t ${params.cpu} -m ${params.mem} \
+    $PY36
+    spades.py -t ${params.cpu} -m ${params.mem} \
     --phred-offset 33 --careful \
-    --pe1-1 ${forward} \
-    --pe1-2 ${reverse} \
-    --nanopore ${longread} \
+    --pe1-1 ${sr1} \
+    --pe1-2 ${sr2} \
+    --nanopore ${lr} \
     --plasmid \
     -o spades
-    cp spades/assembly_graph_with_scaffolds.gfa spades/${id}_spades_graph.gfa
+    cp spades/assembly_graph_with_scaffolds.gfa spades/${id}_graph_spades.gfa
+    cp spades/assembly.fasta spades/${id}_assembly_spades.fasta
     """
 }
-/*
-*  SSPACE scaffolder 
-*
-*
-*/
-process sspace_scaffolding{
-    tag{data_id}
 
-    input:
-    set data_id, forward, reverse, longread, scaffolds, plasmid from files_spades_sspace  
-
-    output:
-    set data_id, forward, reverse, longread, file("sspace/scaffolds.fasta"), val('spades_sspace') into files_sspace 
-    
-    when:
-    isMode(['spades','all'])
-
-    script:
-    """
-    perl ${SSPACE} -c ${scaffolds} -p ${longread} -b sspace -t ${params.cpu}
-    """
-}
-    
-/*
-* Links scaffolder
-*
-*
-*/
 process links_scaffolding{
-    tag{data_id}
+    // Scaffolding of assembled contigs using LINKS using long reads
+    tag{id}
+    publishDir "${params.outDir}/${id}/03_scaffolding_links}", mode: 'copy'   
     
     input:
-    set data_id, forward, reverse, longread, scaffolds, plasmid from files_spades_links
+    set id, sr1, sr2, lr, scaffolds, plasmid from files_spades_links
     
     output:
-    set data_id, forward, reverse, longread, file("${data_id}_links.fasta"), val('spades_links') into files_links
+    set id, sr1, sr2, lr, file("${id}_scaffold_links.fasta"), val('spades_links') into files_links
 
     when:
     isMode(['spades', 'all'])
     
     script:
     """
-    echo ${longread} > longreads.txt
+    $PY36
+    echo ${lr} > longreads.txt
     perl ${LINKS} -f ${scaffolds} -s longreads.txt -b links
-    mv links.scaffolds.fa ${data_id}_links.fasta
+    mv links.scaffolds.fa ${id}_scaffold_links.fasta
     """
 }
 
 process gapfiller{
+   // Fill gaps in Scaffolds ('NNN') by finding matches in shortreads 
    tag{data_id}
+   publishDir "${params.outDir}/${id}/03_gapfilling}", mode: 'copy'   
    
    input:
-   set data_id, forward, reverse, longread, scaffolds, type from files_sspace .mix(files_links)
+   set data_id, sr1, sr2, lr, scaffolds, type from files_links
           
    output:
-   set data_id, forward, reverse, longread, file("${data_id}_gapfiller.fasta"), type into assembly_gapfiller
+   set data_id, sr1, sr2, lr, file("${id}_gapfilled.fasta"), type into assembly_gapfiller
 
    script:
    """
-   echo 'Lib1GF bowtie '${forward} ${reverse} '500 0.5 FR' > gapfill.lib
-   perl ${GAPFILLER} -l gapfill.lib -s ${scaffolds} -m 32 -t 10 -o 2 -r 0.7 -d 200 -n 10 -i 15 -g 0 -T 5 -b out
-   mv out/out.gapfilled.final.fa ${data_id}_gapfiller.fasta
+   $PY27
+   Gap2Seq -scaffolds ${scaffolds} -reads ${sr1},${sr2} -filled ${id}_gapfilled.fasta  -nf-cores ${params.cpu}
    """
 }
 
-/*
-*  Canu assembler
-*
-*
-*/
 process canu_parameters {
-
+    // Create textfile with canu settings
     output: 
     file('canu_settings.txt') into canu_settings
 
@@ -344,8 +319,9 @@ process canu_parameters {
 }
 
 process canu{
+    // Canu assembly tool for long reads
     tag{id}
-    publishDir "${params.outDir}/${id}_${params.assembly}/canu", mode: 'copy'
+    publishDir "${params.outDir}/${id}/02_assembly_canu", mode: 'copy'
 
     input:
     set id, sr1, sr2, lr from files_pre_canu
@@ -354,60 +330,60 @@ process canu{
     output: 
     set id, sr1, sr2, lr, file("${id}.contigs.fasta"), val('canu') into files_unpolished_canu
     file("${id}.report")
-    file("${id}_canu.gfa")
+    file("${id}_graph_canu.gfa")
+    file("${id}_assembly_canu.fasta")
 
     when:
-    params.assembly in ['canu','all']
+    isMode(['canu','all'])
 
     script:
     """
-    ${CANU} -s ${canu_settings} -p ${id} -nanopore-raw ${lr}
-    cp ${id}.unitigs.gfa ${id}_canu.gfa
+    $PY27
+    canu -s ${canu_settings} -p ${id} -nanopore-raw ${lr}
+    cp ${id}.unitigs.gfa ${id}_graph_canu.gfa
+    cp ${id}.contigs.fasta ${id}_assembly_canu.fasta
     """
 }
 
-/*
-*  miniasm assembler
-*
-*
-*/
 process miniasm{
+    // Ultra fast long read assembly using minimap2 and  miniasm
     tag{id}
-    publishDir "${params.outDir}/${id}_${params.assembly}/miniasm", mode: 'copy'
+    publishDir "${params.outDir}/${id}/02_assembly_miniasm", mode: 'copy'
 
     input:
     set id, sr1, sr2, lr from files_pre_miniasm
     
     output:
-    set id, sr1, sr2, lr, file("miniasm_assembly.fasta") into files_noconsensus
-    file("${id}_miniasm_graph.gfa")
+    set id, sr1, sr2, lr, file("${id}_assembly_miniasm.fasta") into files_noconsensus
+    file("${id}_graph_miniasm.gfa")
 
     when:
-    params.assembly in ['miniasm', 'all']
+    isMode(['miniasm', 'all'])
 
     script:
     """
     ${MINIMAP2} -x ava-ont -t ${params.cpu} ${lr} ${lr} > ovlp.paf
-    ${MINIASM} -f ${lr} ovlp.paf > ${id}_miniasm_graph.gfa
-    awk '/^S/{print ">"\$2"\\n"\$3}' ${id}_miniasm_graph.gfa | fold > miniasm_assembly.fasta
+    ${MINIASM} -f ${lr} ovlp.paf > ${id}_graph_miniasm.gfa
+    awk '/^S/{print ">"\$2"\\n"\$3}' ${id}_graph_miniasm.gfa | fold > ${id}_assembly_miniasm.fasta
     """
 }
 
 process racon {
     tag{id}
-    publishDir "${params.outDir}/${id}_${params.assembly}/racon", mode: 'copy'
+    // Improve result by realigning short reads to the miniasm assembly
+    publishDir "${params.outDir}/${id}_${params.assembly}/03_racon", mode: 'copy'
     
     input:
     set id, sr1, sr2, lr, assembly from files_noconsensus
 
     output:
-    set id, sr1, sr2, lr, file("assembly_consensus.fasta"), val("miniasm") into files_unpolished_racon
-    file("assembly_consensus.fasta")
+    set id, sr1, sr2, lr, file("${id}_consensus_racon.fasta"), val("miniasm") into files_unpolished_racon
+    file("${id}_consensus_racon.fasta")
 
     script:
     """
     ${MINIMAP2} -x map-ont -t ${params.cpu} ${assembly} ${lr} > assembly_map.paf
-    ${RACON} -t ${params.cpu} ${lr} assembly_map.paf ${assembly} assembly_consensus.fasta
+    ${RACON} -t ${params.cpu} ${lr} assembly_map.paf ${assembly} ${id}_consensus_racon.fasta
     """
 }
 
@@ -423,7 +399,8 @@ process flye {
     output:
     set id, sr1, sr2, lr, file("flye/scaffolds.fasta"), val('flye') into files_unpolished_flye
     file("flye/assembly_info.txt")
-    file("flye/${id}_flye_graph.gfa")
+    file("flye/${id}_graph_flye.gfa")
+    file("flye/${id}_assembly_flye.fasta")
 
     
     when:
@@ -433,7 +410,8 @@ process flye {
     """
     ${FLYE} --nano-raw ${lr} --out-dir flye \
     --genome-size ${params.genomeSize} --threads ${params.cpu} -i 0
-    cp flye/2-repeat/graph_final.gfa flye/${id}_flye_graph.gfa
+    cp flye/2-repeat/graph_final.gfa flye/${id}_graph_flye.gfa
+    cp flye/scaffolds.fasta flye/${id}_assembly_flye.fasta
     """
 }
 
