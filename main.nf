@@ -149,7 +149,9 @@ process nanoplot {
     set id, lr, type from files_nanoplot_raw .mix(files_nanoplot_filtered)
 
     output:
-    file '*'
+    file '*.png'
+    file '*.html'
+    file '*.txt'
     
     script:
     """
@@ -208,10 +210,11 @@ process spades{
     set id, sr1, sr2, longread from files_pre_spades  
 
     output:
-    set id, sr1, sr2, longread, file("spades/scaffolds.fasta"), val('spades_plasmid') into files_spades_links, files_spades_simple 
-    file("spades/${id}_assembly_spades.fasta")
-    file("spades/${id}_graph_spades.gfa")
-
+    set id, sr1, sr2, longread, file("spades/contigs.fasta"), val('spades') into files_spades 
+    set id, sr1, sr2, longread, file("spades/scaffolds.fasta"), val('spades_simple') into assembly_spades_simple 
+    file("${id}_contigs_spades.fasta")
+    file("${id}_graph_spades.gfa")
+    file("${id}_scaffolds_spades.fasta")
 
     when:
     isMode(['spades','spades_simple','all'])
@@ -225,8 +228,9 @@ process spades{
     --pe1-2 ${sr2} \
     --nanopore ${longread} \
     -o spades
-    cp spades/assembly_graph_with_scaffolds.gfa spades/${id}_graph_spades.gfa
-    cp spades/assembly.fasta spades/${id}_assembly_spades.fasta
+    cp spades/assembly_graph_with_scaffolds.gfa ${id}_graph_spades.gfa
+    cp spades/scaffolds.fasta ${id}_scaffolds_spades.fasta
+    cp spades/contigs.fasta ${id}_contigs_spades.fasta
     """
 }
 
@@ -234,16 +238,16 @@ process spades{
 process spades_plasmid{
 // Spades Assembler running plasmid only configuration
     tag{id}
-    publishDir "${params.outDir}/${id}/02_assembly_spades_plasmid}", mode: 'copy'   
+    publishDir "${params.outDir}/${id}/02_assembly_spades_plasmid", mode: 'copy'   
 
     input:
     set id, sr1, sr2, lr from files_pre_spades_plasmid
 
     output:
     set id, sr1, sr2, lr, file("spades/scaffolds.fasta"), val('spades_plasmid') into files_spades_plasmid 
-    file("spades/${id}_assembly_spades.fasta")
-    file("spades/${id}_graph_spades.gfa")
-
+    file("${id}_contigs_spades_plasmid.fasta")
+    file("${id}_graph_spades_plasmid.gfa")
+    file("${id}_scaffolds_spades_plasmid.fasta")
 
     when:
     isMode(['spades_plasmid','all'])
@@ -258,21 +262,22 @@ process spades_plasmid{
     --nanopore ${lr} \
     --plasmid \
     -o spades
-    cp spades/assembly_graph_with_scaffolds.gfa spades/${id}_graph_spades.gfa
-    cp spades/assembly.fasta spades/${id}_assembly_spades.fasta
+    cp spades/assembly_graph_with_scaffolds.gfa ${id}_graph_spades_plasmid.gfa
+    cp spades/scaffolds.fasta ${id}_scaffolds_spades_plasmid.fasta
+    cp spades/contigs.fasta ${id}_contigs_spades_plasmid.fasta
     """
 }
 
 process links_scaffolding{
     // Scaffolding of assembled contigs using LINKS using long reads
     tag{id}
-    publishDir "${params.outDir}/${id}/03_scaffolding_links}", mode: 'copy'   
+    publishDir "${params.outDir}/${id}/03_${type}_links", mode: 'copy'   
     
     input:
-    set id, sr1, sr2, lr, scaffolds, plasmid from files_spades_links
+    set id, sr1, sr2, lr, scaffolds, type from files_spades .mix(files_spades_plasmid)
     
     output:
-    set id, sr1, sr2, lr, file("${id}_scaffold_links.fasta"), val('spades_links') into files_links
+    set id, sr1, sr2, lr, file("${id}_${type}_scaffold_links.fasta"), type into files_links
 
     when:
     isMode(['spades', 'all'])
@@ -281,21 +286,21 @@ process links_scaffolding{
     """
     $PY36
     echo ${lr} > longreads.txt
-    perl ${LINKS} -f ${scaffolds} -s longreads.txt -b links
-    mv links.scaffolds.fa ${id}_scaffold_links.fasta
+    LINKS -x 1 -f ${scaffolds} -s longreads.txt -b links
+    mv links.scaffolds.fa ${id}_${type}_scaffold_links.fasta
     """
 }
 
 process gapfiller{
    // Fill gaps in Scaffolds ('NNN') by finding matches in shortreads 
    tag{data_id}
-   publishDir "${params.outDir}/${id}/03_gapfilling}", mode: 'copy'   
+   publishDir "${params.outDir}/${id}/03_gapfilling", mode: 'copy'   
    
    input:
-   set data_id, sr1, sr2, lr, scaffolds, type from files_links
+   set id, sr1, sr2, lr, scaffolds, type from files_links
           
    output:
-   set data_id, sr1, sr2, lr, file("${id}_gapfilled.fasta"), type into assembly_gapfiller
+   set id, sr1, sr2, lr, file("${id}_gapfilled.fasta"), type into assembly_gapfiller
 
    script:
    """
@@ -372,7 +377,7 @@ process miniasm{
 process racon {
     tag{id}
     // Improve result by realigning short reads to the miniasm assembly
-    publishDir "${params.outDir}/${id}_${params.assembly}/03_racon", mode: 'copy'
+    publishDir "${params.outDir}/${id}/03_racon", mode: 'copy'
     
     input:
     set id, sr1, sr2, lr, assembly from files_noconsensus
@@ -393,7 +398,7 @@ process flye {
 // Assembly step using Flye assembler
     errorStrategy 'ignore'
     tag{id}
-    publishDir "${params.outDir}/${id}_${params.assembly}", mode: 'copy'
+    publishDir "${params.outDir}/${id}/02_assembly_flye", mode: 'copy'
 
     input:
     set id, sr1, sr2, lr from files_pre_flye
@@ -404,13 +409,13 @@ process flye {
     file("flye/${id}_graph_flye.gfa")
     file("flye/${id}_assembly_flye.fasta")
 
-    
     when:
-    params.assembly in ['flye', 'all']
+    isMode(['flye', 'all'])
 
     script:
     """
-    ${FLYE} --nano-raw ${lr} --out-dir flye \
+    $PY27
+    flye --nano-raw ${lr} --out-dir flye \
     --genome-size ${params.genomeSize} --threads ${params.cpu} -i 0
     cp flye/2-repeat/graph_final.gfa flye/${id}_graph_flye.gfa
     cp flye/scaffolds.fasta flye/${id}_assembly_flye.fasta
@@ -424,75 +429,52 @@ files_pilon = files_unpolished.mix(files_unpolished_canu, files_unpolished_racon
 process pilon{
 // Polishes long read assemly with short reads
     tag{id}
+    publishDir "${params.outDir}/${id}/03_pilon", mode: 'copy'
 
     input:
     set id, sr1, sr2, lr, contigs, type from files_pilon
 
     output:
-    set id, sr1, sr2, lr, file("after_polish.fasta"), type into assembly_pilon
+    set id, sr1, sr2, lr, file("${id}_${type}_pilon.fasta"), type into assembly_pilon
 
     script:
     """
-    ${BOWTIE2_BUILD} ${contigs} contigs_index.bt2 
+    $PY36
+    bowtie2-build ${contigs} contigs_index.bt2 
 
-    ${BOWTIE2} --local --very-sensitive-local -I 0 -X 2000 -x contigs_index.bt2 \
-    -1 ${sr1} -2 ${sr2} | ${SAMTOOLS} sort -o alignments.bam -T reads.tmp 
+    bowtie2 --local --very-sensitive-local -I 0 -X 2000 -x contigs_index.bt2 \
+    -1 ${sr1} -2 ${sr2} | samtools sort -o alignments.bam -T reads.tmp 
     
-    ${SAMTOOLS} index alignments.bam
+    samtools index alignments.bam
 
-    java -jar $PILON --genome ${contigs} --frags alignments.bam --changes \
-    --output after_polish --fix all
+    pilon --genome ${contigs} --frags alignments.bam --changes \
+    --output ${id}_${type}_pilon --fix all
     """
 }
 
 // Merge channel output from different assembly paths
 assembly=Channel.create()
-assembly_merged = assembly.mix(assembly_gapfiller, assembly_unicycler, assembly_pilon)
+assembly_merged = assembly.mix(assembly_spades_simple, assembly_gapfiller, assembly_unicycler, assembly_pilon)
 
 
 /*
 * Length filter trimming of contigs < 2000bp from the final assembly
 * Creates a plot of contig lenghts in the assembly
 */
-process length_filter {
-    publishDir "${params.outDir}/${id}_${params.assembly}/", mode: 'copy'
+process format_final_output {
+    publishDir "${params.outDir}/${id}/04_assembled_genomes", mode: 'copy'
 
     input:
     set id, sr1, sr2, lr, contigs, type from assembly_merged
 
     output:
-    set id, type into complete_status
-    file("${id}_${type}_final.fasta")
+    //set id, type into complete_status
+    file("${id}_${type}_final_assembly.fasta")
     
-    // Uses python2 
     script:
     """
-    #!/usr/bin/env python
-
-    import sys
-    import os
-    import numpy as np
-    from Bio import SeqIO
-    import pandas as pd
-    import matplotlib
-    matplotlib.use('Agg')
-    from matplotlib import pyplot as plt
-
-    long_contigs = []
-    input_handle=open('${contigs}', 'rU')
-    output_handle=open('${id}_${type}_final.fasta', 'w')
-    
-    for index, record in enumerate(SeqIO.parse(input_handle, 'fasta')):
-        if len(record.seq) >= ${min_contig_length}:
-            record.id = "${id}." + str(index+1)
-            record.description = "assembler=${type} length=" + str(len(record.seq))
-            long_contigs.append(record)
-    
-    SeqIO.write(long_contigs, output_handle, "fasta")
-    
-    input_handle.close()
-    output_handle.close()
-
+    $PY36
+    python ${workflow.projectDir}/scripts/format_output.py ${contigs} ${id} ${type} ${params.minContigLength}
     """
 
 }
