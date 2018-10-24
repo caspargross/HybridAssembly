@@ -27,6 +27,9 @@ Processes overview:
 // Define valid run modes:
 validModes = ['spades_simple', 'spades', 'spades_plasmid', 'canu', 'unicycler', 'flye', 'miniasm', 'all']
 
+// Display version
+if (params.version) exit 0, nextFlowMessage(), pipelineMessage()
+
 // Check required input parameters
 if (params.help) exit 0, helpMessage()
 if (!params.mode) exit 0, helpMessage()
@@ -490,29 +493,47 @@ def helpMessage() {
   // Display help message
   // this.pipelineMessage()
   log.info "  Usage:"
-  log.info "       nextflow run caspargross/hybridAssembly --samples <file.csv> --mode <mode1,mode2...> [options] "
+  log.info "       nextflow run caspargross/hybridAssembly --input <file.csv> --mode <mode1,mode2...> [options] "
   log.info "    --input <file.tsv>"
-  log.info "       Specify a TSV file containing paths to sample files."
-  log.info "    --mode ${validModes}"
+  log.info "       TSV file containing paths to read files (id | shortread1| shortread2 | longread)"
+  log.info "    --mode {${validModes}}"
   log.info "       Default: none, choose one or multiple modes to run the pipeline "
   log.info " "
   log.info "  Parameters: "
-  log.info "    --genomeSize <int> (Default 5300000)"
+  log.info "    --outDir "
+  log.info "    Output locattion (Default: current working directory"
+  log.info "    --genomeSize <bases> (Default: 5300000)"
   log.info "    Expected genome size in bases."
-  log.info "    --targetShortReadCov <int> (Default: 60)"
+  log.info "    --targetShortReadCov <coverage> (Default: 60)"
   log.info "    Short reads will be downsampled to a maximum of this coverage"
-  log.info "    --targetLongReadCov <int> (Default: 60)"
+  log.info "    --targetLongReadCov <coverage> (Default: 60)"
   log.info "    Long reads will be downsampled to a maximum of this coverage"
+  log.info "    --cpu <threads>"
+  log.info "    set max number of threads per process"
+  log.info "    --mem <Gb>"
+  log.info "    set max amount of memory per process"
+  log.info "    --minContigLength <length>"
+  log.info "    filter final contigs for minimum length (Default: 1000)"
   log.info "          "
   log.info "  Options:"
-  log.info "    --shortRead"
-  log.info "      Uses only short reads. Only 'spades_simple', 'spades_plasmid' and 'unicycler' mode."
-  log.info "    --longRead"
-  log.info "      Uses long read only. Only 'unicycler', 'miniasm', 'canu' and 'flye'"
-  log.info "    --fast"
-  log.info "      Skips some steps to run faster. Only one cycle of error correction'" 
-  log.info "    --test"
-  log.info "      Uses small test dataset to check dependencies and settings (overrides input/mode)"
+//  log.info "    --shortRead"
+//  log.info "      Uses only short reads. Only 'spades_simple', 'spades_plasmid' and 'unicycler' mode."
+//  log.info "    --longRead"
+//  log.info "      Uses long read only. Only 'unicycler', 'miniasm', 'canu' and 'flye'"
+//  log.info "    --fast"
+//  log.info "      Skips some steps to run faster. Only one cycle of error correction'" 
+  log.info "    --version"
+  log.info "      Displays pipeline version"
+  log.info "           "
+  log.info "  Profiles:"
+  log.info "    -profile local "
+  log.info "    Pipeline runs with locally installed conda environments (found in env/ folder)"
+  log.info "    -profile test "
+  log.info "    Runs complete pipeline on small included test dataset"
+  log.info "    -profile localtest "
+  log.info "    Runs test profile with locally installed conda environments"
+
+
 }
 
 
@@ -566,12 +587,12 @@ workflow.onComplete {
   log.info "Error report: " + (workflow.errorReport ?: '-')
 }
 
-workflow.onError {
+//workflow.onError {
   // Display error message
   //this.nextflowMessage()
-  log.info "Workflow execution stopped with the following message:"
-  log.info "  " + workflow.errorMessage
-}
+  //log.info "Workflow execution stopped with the following message:"
+  //log.info "  " + workflow.errorMessage
+//}
 
 def isMode(it) {
   // returns whether a given list of arguments contains at least one valid mode
