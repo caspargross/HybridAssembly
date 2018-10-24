@@ -477,7 +477,7 @@ process format_final_output {
     script:
     """
     $PY36
-    python ${workflow.projectDir}/scripts/format_output.py ${contigs} ${id} ${type} ${params.minContigLength}
+    format_output.py ${contigs} ${id} ${type} ${params.minContigLength}
     """
 
 }

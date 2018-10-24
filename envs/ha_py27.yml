@@ -166,5 +166,3 @@ dependencies:
     - networkx==2.1
     - poretools==0.6.0
     - seaborn==0.8.1
-prefix: /mnt/users/ahgrosc1/tools/miniconda3/envs/ha_py27
-

@@ -134,5 +134,3 @@ dependencies:
   - pip:
     - networkx==2.1
     - nose==1.3.7
-prefix: /mnt/users/ahgrosc1/tools/miniconda3/envs/ha_py36
-
