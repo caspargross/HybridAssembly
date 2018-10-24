@@ -362,8 +362,9 @@ process miniasm{
 
     script:
     """
-    ${MINIMAP2} -x ava-ont -t ${params.cpu} ${lr} ${lr} > ovlp.paf
-    ${MINIASM} -f ${lr} ovlp.paf > ${id}_graph_miniasm.gfa
+    $PY36
+    minimap2 -x ava-ont -t ${params.cpu} ${lr} ${lr} > ovlp.paf
+    miniasm -f ${lr} ovlp.paf > ${id}_graph_miniasm.gfa
     awk '/^S/{print ">"\$2"\\n"\$3}' ${id}_graph_miniasm.gfa | fold > ${id}_assembly_miniasm.fasta
     """
 }
@@ -382,8 +383,9 @@ process racon {
 
     script:
     """
-    ${MINIMAP2} -x map-ont -t ${params.cpu} ${assembly} ${lr} > assembly_map.paf
-    ${RACON} -t ${params.cpu} ${lr} assembly_map.paf ${assembly} ${id}_consensus_racon.fasta
+    $PY36
+    minimap2 -x map-ont -t ${params.cpu} ${assembly} ${lr} > assembly_map.paf
+    racon -t ${params.cpu} ${lr} assembly_map.paf ${assembly} > ${id}_consensus_racon.fasta
     """
 }
 
@@ -419,12 +421,8 @@ process flye {
 files_unpolished = Channel.create()
 files_pilon = files_unpolished.mix(files_unpolished_canu, files_unpolished_racon, files_unpolished_flye)
 
-/*
-* Pilon polisher
-*
-*
-*/
 process pilon{
+// Polishes long read assemly with short reads
     tag{id}
 
     input:
@@ -555,7 +553,7 @@ def minimalInformationMessage() {
   log.info "Expected size : " + params.genomeSize
   log.info "Target lr cov : " + params.targetLongReadCov
   log.info "Target sr civ : " + params.targetShortReadCov
-  log.info "Containers"
+  log.info "Containers    : " + workflow.container 
 }
 
 def nextflowMessage() {
@@ -598,10 +596,15 @@ def isMode(it) {
 it.any {modes.contains(it)}
 }
 
-static def returnFile(it) {
+def returnFile(it) {
 // Return file if it exists
-    if (!file(it).exists()) exit 1, "Missing file in TSV file: ${it}, see --help for more information"
-    return file(it)
+    if (workflow.profile == 'test') {
+        inputFile = file("$workflow.projectDir/" + it)
+    } else {
+        inputFile = file(it)
+    }
+    if (!file(inputFile).exists()) exit 1, "Missing file in TSV file: ${inputFile}, see --help for more information"
+    return inputFile
 }
 
 def extractFastq(tsvFile) {
