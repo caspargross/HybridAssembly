@@ -192,7 +192,9 @@ process unicycler{
 
     output:
     set id, sr1, sr2, lr, file("${id}/assembly.fasta"), val('unicycler') into assembly_unicycler
-    file("${id}/*")
+    file("${id}/*.gfa")
+    file("${id}/assembly.fasta")
+    file("${id}/unicycler.log")
 
     when:
     isMode(['unicycler', 'all'])
