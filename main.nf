@@ -216,7 +216,7 @@ process spades{
     set id, sr1, sr2, longread, file("spades/contigs.fasta"), val('spades') into files_spades 
     set id, sr1, sr2, longread, file("spades/scaffolds.fasta"), val('spades_simple') into assembly_spades_simple 
     file("${id}_contigs_spades.fasta")
-    file("${id}_graph_spades.gfa")
+    set id, val('spades'), file("${id}_graph_spades.gfa") into assembly_graph
     file("${id}_scaffolds_spades.fasta")
 
     when:
@@ -249,7 +249,7 @@ process spades_plasmid{
     output:
     set id, sr1, sr2, lr, file("spades/scaffolds.fasta"), val('spades_plasmid') into files_spades_plasmid 
     file("${id}_contigs_spades_plasmid.fasta")
-    file("${id}_graph_spades_plasmid.gfa")
+    set id, val('spades_plasmid'), file("${id}_graph_spades_plasmid.gfa") into assembly_graph
     file("${id}_scaffolds_spades_plasmid.fasta")
 
     when:
@@ -338,7 +338,7 @@ process canu{
     output: 
     set id, sr1, sr2, lr, file("${id}.contigs.fasta"), val('canu') into files_unpolished_canu
     file("${id}.report")
-    file("${id}_graph_canu.gfa")
+    set id, val('canu'), file("${id}_graph_canu.gfa") into assembly_graph
     file("${id}_assembly_canu.fasta")
 
     when:
@@ -363,7 +363,7 @@ process miniasm{
     
     output:
     set id, sr1, sr2, lr, file("${id}_assembly_miniasm.fasta") into files_noconsensus
-    file("${id}_graph_miniasm.gfa")
+    set id, val('miniasm'), file("${id}_graph_miniasm.gfa") into assembly_graph
 
     when:
     isMode(['miniasm', 'all'])
@@ -409,7 +409,7 @@ process flye {
     output:
     set id, sr1, sr2, lr, file("flye/scaffolds.fasta"), val('flye') into files_unpolished_flye
     file("flye/assembly_info.txt")
-    file("flye/${id}_graph_flye.gfa")
+    set id, val('flye') file("flye/${id}_graph_flye.gfa") into assembly_graph
     file("flye/${id}_assembly_flye.fasta")
 
     when:
@@ -459,12 +459,26 @@ process pilon{
 assembly=Channel.create()
 assembly_merged = assembly.mix(assembly_spades_simple, assembly_gapfiller, assembly_unicycler, assembly_pilon)
 
+process draw_assembly_graph {
+// Use Bandage to draw a picture of the assembly graph
+    publishDir "${params.outDir}/${id}/04_assembled_genomes", mode: 'copy'
 
-/*
-* Length filter trimming of contigs < 2000bp from the final assembly
-* Creates a plot of contig lenghts in the assembly
-*/
+    input:
+    set id, type, gfa from assembly_graph
+
+    output:
+    file("${id}_${type}_graph.svg")
+
+    script:
+    """
+    $PY36
+    Bandage image ${gfa} ${id}_${type}_graph.svg
+    """
+}
+
+
 process format_final_output {
+// Filter contigs by length and give consistenc contig naming
     publishDir "${params.outDir}/${id}/04_assembled_genomes", mode: 'copy'
 
     input:
