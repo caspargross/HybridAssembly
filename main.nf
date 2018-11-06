@@ -202,6 +202,7 @@ process unicycler{
     script:
     """ 
     $PY36
+    alias pilon='pilon -Xmx16384m'
     unicycler -1 ${sr1} -2 ${sr2} -l ${lr} -o ${id} -t ${params.cpu}
     """
 }
@@ -218,7 +219,7 @@ process spades{
     set id, sr1, sr2, longread, file("spades/contigs.fasta"), val('spades') into files_spades 
     set id, sr1, sr2, longread, file("spades/scaffolds.fasta"), val('spades_simple') into assembly_spades_simple 
     file("${id}_contigs_spades.fasta")
-    set id, val('spades'), file("${id}_graph_spades.gfa") into assembly_graph
+    set id, val('spades'), file("${id}_graph_spades.gfa") into assembly_graph_spades
     file("${id}_scaffolds_spades.fasta")
 
     when:
@@ -251,7 +252,7 @@ process spades_plasmid{
     output:
     set id, sr1, sr2, lr, file("spades/scaffolds.fasta"), val('spades_plasmid') into files_spades_plasmid 
     file("${id}_contigs_spades_plasmid.fasta")
-    set id, val('spades_plasmid'), file("${id}_graph_spades_plasmid.gfa") into assembly_graph
+    set id, val('spades_plasmid'), file("${id}_graph_spades_plasmid.gfa") into assembly_graph_spades_plasmid
     file("${id}_scaffolds_spades_plasmid.fasta")
 
     when:
@@ -340,7 +341,7 @@ process canu{
     output: 
     set id, sr1, sr2, lr, file("${id}.contigs.fasta"), val('canu') into files_unpolished_canu
     file("${id}.report")
-    set id, val('canu'), file("${id}_graph_canu.gfa") into assembly_graph
+    set id, val('canu'), file("${id}_graph_canu.gfa") into assembly_graph_canu
     file("${id}_assembly_canu.fasta")
 
     when:
@@ -365,7 +366,7 @@ process miniasm{
     
     output:
     set id, sr1, sr2, lr, file("${id}_assembly_miniasm.fasta") into files_noconsensus
-    set id, val('miniasm'), file("${id}_graph_miniasm.gfa") into assembly_graph
+    set id, val('miniasm'), file("${id}_graph_miniasm.gfa") into assembly_graph_miniasm
 
     when:
     isMode(['miniasm', 'all'])
@@ -411,7 +412,7 @@ process flye {
     output:
     set id, sr1, sr2, lr, file("flye/scaffolds.fasta"), val('flye') into files_unpolished_flye
     file("flye/assembly_info.txt")
-    set id, val('flye') file("flye/${id}_graph_flye.gfa") into assembly_graph
+    set id, val('flye'), file("flye/${id}_graph_flye.gfa") into assembly_graph_flye
     file("flye/${id}_assembly_flye.fasta")
 
     when:
@@ -428,8 +429,7 @@ process flye {
 }
 
 // Create channel for all unpolished files to be cleaned with Pilon
-files_unpolished = Channel.create()
-files_pilon = files_unpolished.mix(files_unpolished_canu, files_unpolished_racon, files_unpolished_flye)
+files_pilon = files_unpolished_canu.mix(files_unpolished_racon, files_unpolished_flye)
 
 process pilon{
 // Polishes long read assemly with short reads
@@ -452,21 +452,20 @@ process pilon{
     
     samtools index alignments.bam
 
-    pilon --genome ${contigs} --frags alignments.bam --changes \
+    pilon -Xmx16384m --genome ${contigs} --frags alignments.bam --changes \
     --output ${id}_${type}_pilon --fix all
     """
 }
 
 // Merge channel output from different assembly paths
-assembly=Channel.create()
-assembly_merged = assembly.mix(assembly_spades_simple, assembly_gapfiller, assembly_unicycler, assembly_pilon)
+assembly_merged = assembly_spades_simple.mix(assembly_gapfiller, assembly_unicycler, assembly_pilon)
 
 process draw_assembly_graph {
 // Use Bandage to draw a picture of the assembly graph
     publishDir "${params.outDir}/${id}/04_assembled_genomes", mode: 'copy'
 
     input:
-    set id, type, gfa from assembly_graph
+    set id, type, gfa from assembly_graph_spades.mix(assembly_graph_spades_plasmid, assembly_graph_flye, assembly_graph_miniasm, assembly_graph_canu)
 
     output:
     file("${id}_${type}_graph.svg")
