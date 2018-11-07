@@ -192,7 +192,7 @@ process unicycler{
 
     output:
     set id, sr1, sr2, lr, file("${id}/assembly.fasta"), val('unicycler') into assembly_unicycler
-    file("${id}/*.gfa")
+    set id, val('unicycler'), file("${id}/assembly.gfa") into assembly_graph_unicycler
     file("${id}/assembly.fasta")
     file("${id}/unicycler.log")
 
@@ -202,7 +202,6 @@ process unicycler{
     script:
     """ 
     $PY36
-    alias pilon='pilon -Xmx16384m'
     unicycler -1 ${sr1} -2 ${sr2} -l ${lr} -o ${id} -t ${params.cpu}
     """
 }
@@ -465,7 +464,7 @@ process draw_assembly_graph {
     publishDir "${params.outDir}/${id}/04_assembled_genomes", mode: 'copy'
 
     input:
-    set id, type, gfa from assembly_graph_spades.mix(assembly_graph_spades_plasmid, assembly_graph_flye, assembly_graph_miniasm, assembly_graph_canu)
+    set id, type, gfa from assembly_graph_spades.mix(assembly_graph_spades_plasmid, assembly_graph_unicycler, assembly_graph_flye, assembly_graph_miniasm, assembly_graph_canu)
 
     output:
     file("${id}_${type}_graph.svg")
