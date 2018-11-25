@@ -26,6 +26,7 @@ Processes overview:
 */
 // Define valid run modes:
 validModes = ['spades_simple', 'spades', 'spades_plasmid', 'canu', 'unicycler', 'flye', 'miniasm', 'all']
+validModesLR = ['canu', 'unicycler', 'flye', 'miniasm', 'all']
 
 // Display version
 if (params.version) exit 0, nextFlowMessage(), pipelineMessage()
@@ -39,13 +40,24 @@ if (!params.input) exit 0, helpMessage()
 sampleFile = file(params.input)
 modes = params.mode.tokenize(',') 
 
-// check if mode input is valid
-if (!modes.every{validModes.contains(it)}) {
-    exit 1,  log.info "Wrong execution mode, should be one of " + validModes
-}
+// Set long read only execution flag
+longReadOnly = checkLongReadOnly(sampleFile);
 
-// assign Channel to inputFiles
-files = extractFastq(sampleFile);
+files=Channel.create()
+files_lr=Channel.create()
+
+// check if mode input is valid and create channel
+if (longReadOnly) {
+    if (!modes.every{validModesLR.contains(it)}) {
+        exit 1,  log.info "Wrong execution mode, should be one of " + validModesLR
+    }
+    lr_files = extractFastq(sampleFile);
+} else {
+    if (!modes.every{validModes.contains(it)}) {
+        exit 1,  log.info "Wrong execution mode, should be one of " + validModes
+    }
+    files = extractFastq(sampleFile);
+}
 
 // Shorthands for conda environment activations
 PY27 = "source activate ha_py27"
@@ -58,6 +70,7 @@ startMessage()
                            P R O C E S S E S 
 ------------------------------------------------------------------------------
 */
+
 
 process seqpurge {
 // Trim adapters on short read files
@@ -206,6 +219,30 @@ process unicycler{
     """
 }
 
+process unicycler_lr {
+// complete bacterial hybrid assembly pipeline
+    tag{id}
+    publishDir "${params.outDir}/${id}/02_assembly_unicycler", mode: 'copy'   
+   
+    input:
+    set id, lr from lr_files
+
+    output:
+    set id, file("${id}/assembly.fasta"), val('unicycler') into assembly_unicycler_lr
+    set id, val('unicycler'), file("${id}/assembly.gfa") into assembly_graph_unicycler_lr
+    file("${id}/assembly.fasta")
+    file("${id}/unicycler.log")
+
+    when:
+    isMode(['unicycler', 'all'])
+
+    script:
+    """ 
+    $PY36
+    unicycler -l ${lr} -o ${id} -t ${params.cpu}
+    """
+}    
+
 process spades{
 // Spades Assembler running normal configuration
     tag{id}
@@ -305,7 +342,7 @@ process gapfiller{
    set id, sr1, sr2, lr, scaffolds, type from files_links
           
    output:
-   set id, sr1, sr2, lr, file("${id}_gapfilled.fasta"), type into assembly_gapfiller
+   set id, file("${id}_gapfilled.fasta"), type into assembly_gapfiller
 
    script:
    """
@@ -439,7 +476,7 @@ process pilon{
     set id, sr1, sr2, lr, contigs, type from files_pilon
 
     output:
-    set id, sr1, sr2, lr, file("${id}_${type}_pilon.fasta"), type into assembly_pilon
+    set id, file("${id}_${type}_pilon.fasta"), type into assembly_pilon
 
     script:
     """
@@ -457,14 +494,14 @@ process pilon{
 }
 
 // Merge channel output from different assembly paths
-assembly_merged = assembly_spades_simple.mix(assembly_gapfiller, assembly_unicycler, assembly_pilon)
+assembly_merged = assembly_spades_simple.mix(assembly_gapfiller, assembly_unicycler, assembly_unicycler_lr, assembly_pilon)
 
 process draw_assembly_graph {
 // Use Bandage to draw a picture of the assembly graph
     publishDir "${params.outDir}/${id}/04_assembled_genomes", mode: 'copy'
 
     input:
-    set id, type, gfa from assembly_graph_spades.mix(assembly_graph_spades_plasmid, assembly_graph_unicycler, assembly_graph_flye, assembly_graph_miniasm, assembly_graph_canu)
+    set id, type, gfa from assembly_graph_spades.mix(assembly_graph_spades_plasmid, assembly_graph_unicycler, assembly_graph_unicycler_lr, assembly_graph_flye, assembly_graph_miniasm, assembly_graph_canu)
 
     output:
     file("${id}_${type}_graph.svg")
@@ -476,23 +513,72 @@ process draw_assembly_graph {
     """
 }
 
-
 process format_final_output {
 // Filter contigs by length and give consistenc contig naming
     publishDir "${params.outDir}/${id}/04_assembled_genomes", mode: 'copy'
+    tag{id}
 
     input:
-    set id, sr1, sr2, lr, contigs, type from assembly_merged
+    set id, contigs, type from assembly_merged
 
     output:
     //set id, type into complete_status
-    file("${id}_${type}_final_assembly.fasta")
+    set id, type, file("${id}_${type}_final_assembly.fasta") into final_files
     
     script:
     """
     $PY36
     format_output.py ${contigs} ${id} ${type} ${params.minContigLength}
     """
+
+}
+
+// Collect results from the same sample for quality check
+final_files.groupTuple()
+    .into{qc_quast; qc_checkm}
+
+process quast{
+// Assembly quality check using QUAST
+    publishDir "${params.outDir}/${id}/05_qc_quast", mode: 'copy'
+    tag{id}
+
+    input:
+    set id, type, assembly from qc_quast
+
+    output:
+    file("*")
+
+    shell:
+    ''' 
+    !{PY27}
+    files=$(echo !{assembly} | tr -d '[],')
+    quast $files
+    mv quast_results/latest/* .
+    '''
+
+}
+
+process checkm{
+// Assembly wuaity check using CheckM
+    publishDir "${params.outDir}/${id}/05_qc_quast", mode: 'copy'
+    tag{id}
+
+    input:
+    set id, type, assembly from qc_checkm
+
+    output:
+    file("*")
+
+    shell:
+    ''' 
+    !{PY27}
+    files=$(echo !{assembly} | tr -d '[],')
+    mkdir -p bins
+    mkdir -p result
+    cp -t bins $files
+    checkm lineage_wf -t !{params.cpu} -x fasta bins result
+    mv quast_results/latest/* .
+    '''
 
 }
 
@@ -571,6 +657,7 @@ def minimalInformationMessage() {
   log.info "Target lr cov : " + params.targetLongReadCov
   log.info "Target sr civ : " + params.targetShortReadCov
   log.info "Containers    : " + workflow.container 
+  log.info "Long read only: " + longReadOnly
 }
 
 def nextflowMessage() {
@@ -627,21 +714,42 @@ def returnFile(it) {
 def extractFastq(tsvFile) {
   // Extracts Read Files from TSV
   Channel.from(tsvFile)
-  .ifEmpty {exit 1, log.info "Cannot find TSV file ${tsvFile}"}
+  .ifEmpty {exit 1, log.info "Cannot find path file ${tsvFile}"}
   .splitCsv(sep:'\t', skip: 1)
   .map { row ->
-    def id = row[0]
-    def sr1 = returnFile(row[1])
-    def sr2 = returnFile(row[2])
-    def lr = returnFile(row[3])
-    
-    checkFileExtension(sr1, ".fastq.gz")
-    checkFileExtension(sr2, ".fastq.gz")
-    checkFileExtension(lr, ".fastq.gz")
-   
-    [id, sr1, sr2, lr]
+    if (longReadOnly) {
+        // long read only
+        def id = row[0]
+        def lr = returnFile(row[1])
+        [id, lr]
+
+    } else {
+        // hybrid assembly
+        def id = row[0]
+        def sr1 = returnFile(row[2])
+        def sr2 = returnFile(row[3])
+        def lr = returnFile(row[1])
+        [id, sr1, sr2, lr]
+        }
     }
 }
+
+def checkLongReadOnly(tsvFile) {
+  // Checks if tsv files contains only longreads of lr + illumina
+  Channel.from(tsvFile)
+  .ifEmpty {exit 1, log.info "Cannot find path file ${tsvFile}"}
+  .splitCsv(sep:'\t', skip: 1)
+  .map { row ->
+    if (row.size == 2) {
+        // long read only
+        true
+    } else {
+        // hybrid assembly
+		false
+        }
+    }
+}
+
 
 // Check file extension
   static def checkFileExtension(it, extension) {

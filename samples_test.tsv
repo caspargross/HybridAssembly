@@ -1,2 +1,2 @@
-Sample_Id	Short_Reads_1	Short_reads_2	Long_Reads
-testSet	testReads/testReads_illumina_S1.fastq.gz	testReads/testReads_illumina_S2.fastq.gz	testReads/testReads_nanopore.fastq.gz
+Sample_Id	Long_Reads
+testSet	testReads/testReads_nanopore.fastq.gz
