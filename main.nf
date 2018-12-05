@@ -43,8 +43,9 @@ modes = params.mode.tokenize(',')
 // Set long read only execution flag
 longReadOnly = checkLongReadOnly(sampleFile);
 
-files=Channel.create()
+// Setup channels
 files_lr=Channel.create()
+files=Channel.create()
 
 // check if mode input is valid and create channel
 if (longReadOnly) {
@@ -225,7 +226,7 @@ process unicycler_lr {
     publishDir "${params.outDir}/${id}/02_assembly_unicycler", mode: 'copy'   
    
     input:
-    set id, lr from lr_files
+    set id, lr from files_lr
 
     output:
     set id, file("${id}/assembly.fasta"), val('unicycler') into assembly_unicycler_lr
@@ -736,18 +737,17 @@ def extractFastq(tsvFile) {
 
 def checkLongReadOnly(tsvFile) {
   // Checks if tsv files contains only longreads of lr + illumina
-  Channel.from(tsvFile)
-  .ifEmpty {exit 1, log.info "Cannot find path file ${tsvFile}"}
-  .splitCsv(sep:'\t', skip: 1)
-  .map { row ->
-    if (row.size == 2) {
-        // long read only
-        true
-    } else {
-        // hybrid assembly
-		false
-        }
-    }
+  header = tsvFile.readLines().get(1)
+  nrow = header.split('\t').size()
+  // Debug info
+  //log.info "First Line: " + header
+  //log.info "Number of rows: " + nrow
+
+  if (nrow < 3) {
+    true 
+  } else {
+    false 
+  }
 }
 
 
