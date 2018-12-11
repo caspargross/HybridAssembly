@@ -254,7 +254,7 @@ process spades{
 
     output:
     set id, sr1, sr2, longread, file("spades/contigs.fasta"), val('spades') into files_spades 
-    set id, sr1, sr2, longread, file("spades/scaffolds.fasta"), val('spades_simple') into assembly_spades_simple 
+    set id, file("spades/scaffolds.fasta"), val('spades_simple') into assembly_spades_simple 
     file("${id}_contigs_spades.fasta")
     set id, val('spades'), file("${id}_graph_spades.gfa") into assembly_graph_spades
     file("${id}_scaffolds_spades.fasta")
@@ -727,9 +727,9 @@ def extractFastq(tsvFile) {
     } else {
         // hybrid assembly
         def id = row[0]
-        def sr1 = returnFile(row[2])
-        def sr2 = returnFile(row[3])
-        def lr = returnFile(row[1])
+        def sr1 = returnFile(row[1])
+        def sr2 = returnFile(row[2])
+        def lr = returnFile(row[3])
         [id, sr1, sr2, lr]
         }
     }
