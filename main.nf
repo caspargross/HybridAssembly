@@ -205,7 +205,7 @@ process unicycler{
     set id, sr1, sr2, lr from files_pre_unicycler
 
     output:
-    set id, sr1, sr2, lr, file("${id}/assembly.fasta"), val('unicycler') into assembly_unicycler
+    set id,  file("${id}/assembly.fasta"), val('unicycler') into assembly_unicycler
     set id, val('unicycler'), file("${id}/assembly.gfa") into assembly_graph_unicycler
     file("${id}/assembly.fasta")
     file("${id}/unicycler.log")
@@ -495,7 +495,7 @@ process pilon{
 }
 
 // Merge channel output from different assembly paths
-assembly_merged = assembly_spades_simple.mix(assembly_gapfiller, assembly_unicycler, assembly_unicycler_lr, assembly_pilon)
+assembly_merged = assembly_spades_simple.mix(assembly_gapfiller, assembly_unicycler, assembly_unicycler_lr, assembly_pilon).view()
 
 process draw_assembly_graph {
 // Use Bandage to draw a picture of the assembly graph
