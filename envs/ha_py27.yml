@@ -1,4 +1,4 @@
-name: ha_py27
+name: ha_py27_2
 channels:
   - conda-forge
   - bioconda
@@ -130,7 +130,6 @@ dependencies:
   - libxcb=1.13=h1bed415_1
   - libxml2=2.9.8=h26e45fe_1
   - markupsafe=1.0=py27h14c3975_1
-  - mkl=2019.0=118
   - mkl_fft=1.0.4=py27h4414c95_1
   - mkl_random=1.0.1=py27h4414c95_1
   - numpy=1.15.1=py27h1d66e8a_0
