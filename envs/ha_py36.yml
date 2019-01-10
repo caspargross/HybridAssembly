@@ -17,6 +17,7 @@ dependencies:
   - minimap2=2.12=ha92aebf_0
   - nanoget=1.7.6=py35_0
   - nanomath=0.22.0=py35_0
+  - nanoplot=1.20.0=py35_0
   - nanoplotter=1.2.1=py35_0
   - pauvre=0.1.86=py_1
   - perl-archive-tar=2.18=pl526_3
@@ -134,5 +135,5 @@ dependencies:
   - tk=8.6.8=hbc83047_0
   - xz=5.2.4=h14c3975_4
   - zlib=1.2.11=ha838bed_2
-  - pip:
-    - nanoplot==1.10.2
+prefix: /mnt/users/ahgrosc1/tools/miniconda3/envs/ha_py36
+
