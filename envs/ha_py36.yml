@@ -15,10 +15,9 @@ dependencies:
   - links=1.8.6=h470a237_0
   - miniasm=0.3_r179=ha92aebf_0
   - minimap2=2.12=ha92aebf_0
-  - nanoget=1.7.4=py36_0
-  - nanomath=0.21.0=py36_2
-  - nanoplot=1.18.2=py36_1
-  - nanoplotter=1.0.0=py36_2
+  - nanoget=1.7.6=py35_0
+  - nanomath=0.22.0=py35_0
+  - nanoplotter=1.2.1=py35_0
   - pauvre=0.1.86=py_1
   - perl-archive-tar=2.18=pl526_3
   - perl-carp=1.38=pl526_1
@@ -47,6 +46,7 @@ dependencies:
   - spades=3.12.0=1
   - unicycler=0.4.4=py35_0
   - asn1crypto=0.24.0=py35_3
+  - biopython=1.72=py35_0
   - boost=1.67.0=py35h3e44d54_0
   - boost-cpp=1.67.0=h3a22d5f_0
   - ca-certificates=2018.11.29=ha4d7672_0
@@ -64,10 +64,14 @@ dependencies:
   - jsonschema=2.6.0=py35_2
   - jupyter_core=4.4.0=py_0
   - kiwisolver=1.0.1=py35h2d50403_2
+  - mkl_fft=1.0.9=py35_0
+  - mkl_random=1.0.1=py35_0
   - nbformat=4.4.0=py_1
   - nettle=3.3=0
   - openssl=1.0.2p=h470a237_2
+  - pandas=0.23.4=py35hf8a1672_0
   - parallel=20180922=0
+  - patsy=0.5.1=py_0
   - perl=5.26.2=h470a237_0
   - pip=18.0=py35_1001
   - plotly=3.5.0=py_0
@@ -84,12 +88,12 @@ dependencies:
   - setuptools=40.4.3=py35_0
   - sip=4.19.8=py35hfc679d8_0
   - six=1.11.0=py35_1
+  - statsmodels=0.9.0=py35_0
   - swig=3.0.12=hfc679d8_3
   - tornado=5.1.1=py35h470a237_0
   - traitlets=4.3.2=py35_0
   - urllib3=1.23=py35_1
   - wheel=0.32.0=py35_1000
-  - biopython=1.72=py36h04863e7_0
   - blas=1.0=mkl
   - bzip2=1.0.6=h14c3975_5
   - curl=7.61.0=h84994c4_0
@@ -115,23 +119,20 @@ dependencies:
   - libuuid=1.0.3=h1bed415_2
   - libxcb=1.13=h1bed415_1
   - libxml2=2.9.8=h26e45fe_1
-  - matplotlib=2.2.3=py36hb69df0a_0
-  - mkl=2019.0=118
-  - mkl_fft=1.0.4=py36h4414c95_1
-  - mkl_random=1.0.1=py36h4414c95_1
+  - matplotlib=3.0.0=py35h5429711_0
+  - mkl=2018.0.3=1
   - ncurses=6.1=hf484d3e_0
   - numpy=1.14.2=py35hdbf6ddf_0
-  - numpy-base=1.15.1=py36h81de0dd_0
+  - numpy-base=1.15.2=py35h81de0dd_0
   - openjdk=8.0.152=h46b5887_1
-  - pandas=0.23.4=py36h04863e7_0
-  - patsy=0.5.0=py36_0
   - pcre=8.42=h439df22_0
   - pyqt=5.9.2=py35h05f1152_2
   - qt=5.9.6=h8703b6f_2
   - readline=7.0=h7b6447c_5
-  - scipy=1.1.0=py36hfa4b5c9_1
+  - scipy=1.1.0=py35hd20e5f9_0
   - sqlite=3.24.0=h84994c4_0
-  - statsmodels=0.9.0=py36h035aef0_0
   - tk=8.6.8=hbc83047_0
   - xz=5.2.4=h14c3975_4
   - zlib=1.2.11=ha838bed_2
+  - pip:
+    - nanoplot==1.10.2
