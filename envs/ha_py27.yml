@@ -7,7 +7,6 @@ dependencies:
   - bcftools=1.9=h4da6232_0
   - blast=2.6.0=boost1.64_2
   - canu=1.7.1=pl526h470a237_0
-  - checkm-genome=1.0.11=py27_1
   - circos=0.69.6=2
   - dendropy=4.4.0=py_0
   - diamond=0.8.36=hd28b015_2
@@ -65,16 +64,15 @@ dependencies:
   - prodigal=2.6.3=1
   - pysam=0.15.1=py27h0380709_0
   - quast=5.0.0=py27pl526ha92aebf_1
-  - rgi=4.0.3=py27ha92aebf_3
   - samtools=1.9=h46bd0b3_0
   - seqtk=1.3=ha92aebf_0
   - simplejson=3.8.1=py27_0
   - biopython=1.72=py27_0
   - boost=1.64.0=py27_4
   - boost-cpp=1.64.0=1
-  - ca-certificates=2018.8.24=ha4d7672_0
+  - ca-certificates=2018.11.29=ha4d7672_0
   - cairo=1.14.10=0
-  - certifi=2018.8.24=py27_1001
+  - certifi=2018.11.29=py27_1000
   - dbus=1.13.0=h3a4f0e9_0
   - filetype=1.0.1=py_0
   - fontconfig=2.12.6=0
@@ -99,7 +97,7 @@ dependencies:
   - matplotlib=2.2.2=py27_1
   - ncurses=5.9=10
   - nettle=3.3=0
-  - openssl=1.0.2p=h470a237_0
+  - openssl=1.0.2p=h470a237_2
   - pango=1.40.14=0
   - perl-xml-parser=2.44_01=pl526h3a4f0e9_1
   - pixman=0.34.0=h470a237_3
