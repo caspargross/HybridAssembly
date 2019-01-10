@@ -1,4 +1,4 @@
-name: ha_py27_2
+name: ha_py27
 channels:
   - conda-forge
   - bioconda
