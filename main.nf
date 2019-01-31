@@ -76,14 +76,13 @@ startMessage()
 process seqpurge {
 // Trim adapters on short read files
     tag{id}
-    publishDir "${params.outDir}/${id}/01_qc_shortread/", mode: 'copy'
     
     input:
     set id, sr1, sr2, lr from files
 
     output:
     set id, file('sr1.fastq.gz'), file('sr2.fastq.gz'), lr into files_purged
-    file("${id}_readQC.qcml")
+//    set id, file("${id}_readQC.qcml") into per_sample_stats
     
     script:
     """
@@ -534,54 +533,26 @@ process format_final_output {
 
 }
 
-// Collect results from the same sample for quality check
+// Aggregate all assemblyes for a single sample
 final_files.groupTuple()
-    .into{qc_quast; qc_checkm}
+    .view()
+    .set{to_sample_stats}
 
-process quast{
-// Assembly quality check using QUAST
-    publishDir "${params.outDir}/${id}/05_qc_quast", mode: 'copy'
+
+process per_sample_stats{
+// Calculates stats and creates plots for each sample
+    publishDir "${params.outDir}/${id}/04_assembled_genomes", mode: 'copy'
     tag{id}
 
     input:
-    set id, type, assembly from qc_quast
+    set id, filelist from to_sample_stats
 
-    output:
-    file("*")
-
-    shell:
-    ''' 
-    !{PY27}
-    files=$(echo !{assembly} | tr -d '[],')
-    quast $files
-    mv quast_results/latest/* .
-    '''
-
+    script:
+    """
+    echo "DO NOTHING"
+    """
 }
 
-process checkm{
-// Assembly wuaity check using CheckM
-    publishDir "${params.outDir}/${id}/05_qc_quast", mode: 'copy'
-    tag{id}
-
-    input:
-    set id, type, assembly from qc_checkm
-
-    output:
-    file("*")
-
-    shell:
-    ''' 
-    !{PY27}
-    files=$(echo !{assembly} | tr -d '[],')
-    mkdir -p bins
-    mkdir -p result
-    cp -t bins $files
-    checkm lineage_wf -t !{params.cpu} -x fasta bins result
-    mv quast_results/latest/* .
-    '''
-
-}
 
 
 /*
@@ -727,9 +698,9 @@ def extractFastq(tsvFile) {
     } else {
         // hybrid assembly
         def id = row[0]
-        def sr1 = returnFile(row[1])
-        def sr2 = returnFile(row[2])
-        def lr = returnFile(row[3])
+        def sr1 = returnFile(row[2])
+        def sr2 = returnFile(row[3])
+        def lr = returnFile(row[1])
         [id, sr1, sr2, lr]
         }
     }
@@ -739,9 +710,6 @@ def checkLongReadOnly(tsvFile) {
   // Checks if tsv files contains only longreads of lr + illumina
   header = tsvFile.readLines().get(1)
   nrow = header.split('\t').size()
-  // Debug info
-  //log.info "First Line: " + header
-  //log.info "Number of rows: " + nrow
 
   if (nrow < 3) {
     true 
