@@ -95,7 +95,7 @@ process porechop {
 target_lr_length = params.targetLongReadCov * params.genomeSize
 
 process filtlong {
-// Quality filter long reads
+// Quality filter long reads focus on quality instead of length to preserve shorter reads for plasmids
     tag{id}
 
     input: 
@@ -111,6 +111,7 @@ process filtlong {
     filtlong \
     --min_length 1000 \
     --keep_percent 90 \
+    --length_weight 0.5\
     --target_bases  ${target_lr_length} \
     ${lr} > lr_filtlong.fastq
     """
