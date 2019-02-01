@@ -108,7 +108,7 @@ process filtlong {
     script:
     """
     $PY36
-    filtlong -1 ${sr1} -2 ${sr2} \
+    filtlong \
     --min_length 1000 \
     --keep_percent 90 \
     --target_bases  ${target_lr_length} \
