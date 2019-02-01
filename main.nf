@@ -140,6 +140,7 @@ process nanoplot {
 files_to_seqpurge = Channel.create()
 // Send files to shortread preprocessing if available
 if (longReadOnly) {
+    // Forward directly to assembly step
     files_lr_filtered.into{
         files_pre_unicycler;
         files_pre_spades;
@@ -147,7 +148,15 @@ if (longReadOnly) {
         files_pre_miniasm;
         files_pre_flye}
 } else {
+    // Continue with sr preprocessing
     files_lr_filtered.set{files_to_seqpurge}
+    
+    files_filtered.into{
+        files_pre_unicycler;
+        files_pre_spades;
+        files_pre_canu;
+        files_pre_miniasm;
+        files_pre_flye}
 }
     
 
@@ -189,7 +198,6 @@ process sample_shortreads {
     '''
 }
 
-   
 /*process fastqc{
 // Create FASTQC quality check on short reads
     tag{id}
@@ -208,10 +216,6 @@ process sample_shortreads {
     ${FASTQC} ${sr1} ${sr2} -o fastqc
     """
 } */
-
-// Combine results from lr preprocessing and optional sr preprocessing
-files_filtered
-    .into{files_pre_unicycler; files_pre_spades; files_pre_canu; files_pre_miniasm; files_pre_flye}
 
 process unicycler{
 // complete bacterial hybrid assembly pipeline
