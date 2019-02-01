@@ -136,7 +136,7 @@ process nanoplot {
     """
 }
 
-
+files_to_seqpurge = Channel.create()
 // Send files to shortread preprocessing if available
 if (!longReadOnly) {
     files_lr_filtered.set{files_to_seqpurge}
@@ -426,6 +426,7 @@ process flye {
 
 // Create channel for all unpolished files to be cleaned with Pilon
 // Execute pilon only when short reads are available
+files_pilon = Channel.create()
 if (!longReadOnly) {
     files_unpolished_canu.mix(
         files_unpolished_racon, 
@@ -469,6 +470,7 @@ assembly_merged = assembly_spades_simple.mix(assembly_gapfiller, assembly_unicyc
 
 process draw_assembly_graph {
 // Use Bandage to draw a picture of the assembly graph
+    tag{id}
     publishDir "${params.outDir}/${id}/04_assembled_genomes", mode: 'copy'
 
     input:
