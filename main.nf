@@ -25,7 +25,7 @@ Processes overview:
 ------------------------------------------------------------------------------
 */
 // Define valid run modes:
-validModes = ['spades_simple', 'spades', 'spades_plasmid', 'canu', 'unicycler', 'flye', 'miniasm', 'all']
+validModes = ['spades_simple', 'spades', 'canu', 'unicycler', 'flye', 'miniasm', 'all']
 validModesLR = ['canu', 'unicycler', 'flye', 'miniasm', 'all']
 
 // Display version
@@ -44,7 +44,6 @@ modes = params.mode.tokenize(',')
 longReadOnly = checkLongReadOnly(sampleFile);
 
 // Setup channels
-files_lr=Channel.create()
 files=Channel.create()
 
 // check if mode input is valid and create channel
@@ -52,7 +51,7 @@ if (longReadOnly) {
     if (!modes.every{validModesLR.contains(it)}) {
         exit 1,  log.info "Wrong execution mode, should be one of " + validModesLR
     }
-    lr_files = extractFastq(sampleFile);
+    files = extractFastq(sampleFile);
 } else {
     if (!modes.every{validModes.contains(it)}) {
         exit 1,  log.info "Wrong execution mode, should be one of " + validModes
@@ -72,59 +71,19 @@ startMessage()
 ------------------------------------------------------------------------------
 */
 
-
-process seqpurge {
-// Trim adapters on short read files
-    tag{id}
-    
-    input:
-    set id, sr1, sr2, lr from files
-
-    output:
-    set id, file('sr1.fastq.gz'), file('sr2.fastq.gz'), lr into files_purged
-//    set id, file("${id}_readQC.qcml") into per_sample_stats
-    
-    script:
-    """
-    $PY27  
-    SeqPurge -in1 ${sr1} -in2 ${sr2} -threads ${params.cpu} -out1 sr1.fastq.gz -out2 sr2.fastq.gz -qc ${id}_readQC.qcml 
-    """
-}
-
-process sample_shortreads {
-// Subset short reads
-    tag{id}
-
-    input:
-    set id, sr1, sr2, lr from files_purged
-
-    output:
-    set id, file('sr1_filt.fastq'), file('sr2_filt.fastq'), lr into files_filtered
-    
-    shell:
-    '''
-    !{PY27}
-    readLength=$(zcat !{sr1} | awk 'NR % 4 == 2 {s += length($1); t++} END {print s/t}')
-    srNumber=$(echo "(!{params.genomeSize} * !{params.targetShortReadCov})/${readLength}" | bc)
-    seqtk sample -s100 !{sr1} ${srNumber} > sr1_filt.fastq 
-    seqtk sample -s100 !{sr2} ${srNumber} > sr2_filt.fastq 
-    '''
-}
-
-   
 process porechop { 
 // Trim adapter sequences on long read nanopore files
     tag{id}
         
     input:
-    set id, sr1, sr2, lr from files_filtered
+    set id, lr, sr1, sr2 from files
     
     output:
-    set id, sr1, sr2, file('lr_porechop.fastq') into files_porechop
+    set id, file('lr_porechop.fastq'), sr1, sr2 into files_porechop
     set id, lr, val("raw") into files_nanoplot_raw
     
     script:
-    // Join multiple longread files if possible 
+    // Join multiple longread files if possible
     """
     $PY36
     cat ${lr} > nanoreads.fastq
@@ -134,17 +93,18 @@ process porechop {
 
 
 target_lr_length = params.targetLongReadCov * params.genomeSize
+
 process filtlong {
 // Quality filter long reads
     tag{id}
 
     input: 
-    set id, sr1, sr2, lr from files_porechop
+    set id, lr, sr1, sr2 from files_porechop
     
     output:
-    set id, sr1, sr2, file("lr_filtlong.fastq") into files_pre_unicycler, files_pre_spades, files_pre_spades_plasmid, files_pre_canu, files_pre_miniasm, files_pre_flye
-    set id, file("lr_filtlong.fastq"), val('filtered') into files_nanoplot_filtered
-    
+    set id, file("lr_filtlong.fastq"), sr1, sr2 into files_lr_cleaned, files_lr_filtered 
+    set id, file("lr_filtlong.fastq"), val('filtered') into files_nanoplot_filtered    
+
     script:
     """
     $PY36
@@ -162,7 +122,7 @@ process nanoplot {
     publishDir "${params.outDir}/${id}/01_qc_longread/${type}/", mode: 'copy'
     
     input:
-    set id, lr, type from files_nanoplot_raw .mix(files_nanoplot_filtered)
+    set id, lr, type from files_nanoplot_raw.mix(files_nanoplot_filtered)
 
     output:
     file '*.png'
@@ -176,6 +136,52 @@ process nanoplot {
     """
 }
 
+
+// Send files to shortread preprocessing if available
+if (!longReadOnly) {
+    files_lr_filtered.set{files_to_seqpurge}
+}
+    
+
+process seqpurge {
+// Trim adapters on short read files
+    tag{id}
+    
+    input:
+    set id, lr, sr1, sr2 from files_to_seqpurge
+    
+    output:
+    set id, lr, file('sr1.fastq.gz'), file('sr2.fastq.gz') into files_purged
+//  set id, file("${id}_readQC.qcml") into per_sample_stats
+    
+    script:
+    """
+    $PY27  
+    SeqPurge -in1 ${sr1} -in2 ${sr2} -threads ${params.cpu} -out1 sr1.fastq.gz -out2 sr2.fastq.gz -qc ${id}_readQC.qcml 
+    """
+}
+
+process sample_shortreads {
+// Subset short reads
+    tag{id}
+
+    input:
+    set id, lr, sr1, sr2 from files_purged
+
+    output:
+    set id, lr, file('sr1_filt.fastq'), file('sr2_filt.fastq') into files_filtered
+    
+    shell:
+    '''
+    !{PY27}
+    readLength=$(zcat !{sr1} | awk 'NR % 4 == 2 {s += length($1); t++} END {print s/t}')
+    srNumber=$(echo "(!{params.genomeSize} * !{params.targetShortReadCov})/${readLength}" | bc)
+    seqtk sample -s100 !{sr1} ${srNumber} > sr1_filt.fastq 
+    seqtk sample -s100 !{sr2} ${srNumber} > sr2_filt.fastq 
+    '''
+}
+
+   
 /*process fastqc{
 // Create FASTQC quality check on short reads
     tag{id}
@@ -195,16 +201,21 @@ process nanoplot {
     """
 } */
 
+// Combine results from lr preprocessing and optional sr preprocessing
+files_lr_cleaned.mix(files_filtered)
+    .into{files_pre_unicycler; files_pre_spades; files_pre_spades_plasmid; files_pre_canu; files_pre_miniasm; files_pre_flye}
+
 process unicycler{
 // complete bacterial hybrid assembly pipeline
+// accepts both hybrid data and longread only
     tag{id}
     publishDir "${params.outDir}/${id}/02_assembly_unicycler", mode: 'copy'   
    
     input:
-    set id, sr1, sr2, lr from files_pre_unicycler
+    set id, lr, sr1, sr2 from files_pre_unicycler
 
     output:
-    set id,  file("${id}/assembly.fasta"), val('unicycler') into assembly_unicycler
+    set id, file("${id}/assembly.fasta"), val('unicycler') into assembly_unicycler
     set id, val('unicycler'), file("${id}/assembly.gfa") into assembly_graph_unicycler
     file("${id}/assembly.fasta")
     file("${id}/unicycler.log")
@@ -213,46 +224,28 @@ process unicycler{
     isMode(['unicycler', 'all'])
 
     script:
-    """ 
-    $PY36
-    unicycler -1 ${sr1} -2 ${sr2} -l ${lr} -o ${id} -t ${params.cpu}
-    """
+    if (longReadOnly)
+        """ 
+        $PY36
+        unicycler -1 ${sr1} -2 ${sr2} -l ${lr} -o ${id} -t ${params.cpu}
+        """
+    else 
+        """
+        $PY36
+        unicycler -l ${lr} -o ${id} -t ${params.cpu}
+        """
 }
 
-process unicycler_lr {
-// complete bacterial hybrid assembly pipeline
-    tag{id}
-    publishDir "${params.outDir}/${id}/02_assembly_unicycler", mode: 'copy'   
-   
-    input:
-    set id, lr from files_lr
-
-    output:
-    set id, file("${id}/assembly.fasta"), val('unicycler') into assembly_unicycler_lr
-    set id, val('unicycler'), file("${id}/assembly.gfa") into assembly_graph_unicycler_lr
-    file("${id}/assembly.fasta")
-    file("${id}/unicycler.log")
-
-    when:
-    isMode(['unicycler', 'all'])
-
-    script:
-    """ 
-    $PY36
-    unicycler -l ${lr} -o ${id} -t ${params.cpu}
-    """
-}    
-
 process spades{
-// Spades Assembler running normal configuration
+// Spades hybrid Assembly running normal configuration
     tag{id}
     publishDir "${params.outDir}/${id}/02_assembly_spades", mode: 'copy'   
 
     input:
-    set id, sr1, sr2, longread from files_pre_spades  
+    set id, lr,  sr1, sr2 from files_pre_spades  
 
     output:
-    set id, sr1, sr2, longread, file("spades/contigs.fasta"), val('spades') into files_spades 
+    set id, lr, sr1, sr2, file("spades/contigs.fasta"), val('spades') into files_spades 
     set id, file("spades/scaffolds.fasta"), val('spades_simple') into assembly_spades_simple 
     file("${id}_contigs_spades.fasta")
     set id, val('spades'), file("${id}_graph_spades.gfa") into assembly_graph_spades
@@ -268,45 +261,11 @@ process spades{
     --phred-offset 33 --careful \
     --pe1-1 ${sr1} \
     --pe1-2 ${sr2} \
-    --nanopore ${longread} \
+    --nanopore ${lr} \
     -o spades
     cp spades/assembly_graph_with_scaffolds.gfa ${id}_graph_spades.gfa
     cp spades/scaffolds.fasta ${id}_scaffolds_spades.fasta
     cp spades/contigs.fasta ${id}_contigs_spades.fasta
-    """
-}
-
-
-process spades_plasmid{
-// Spades Assembler running plasmid only configuration
-    tag{id}
-    publishDir "${params.outDir}/${id}/02_assembly_spades_plasmid", mode: 'copy'   
-
-    input:
-    set id, sr1, sr2, lr from files_pre_spades_plasmid
-
-    output:
-    set id, sr1, sr2, lr, file("spades/scaffolds.fasta"), val('spades_plasmid') into files_spades_plasmid 
-    file("${id}_contigs_spades_plasmid.fasta")
-    set id, val('spades_plasmid'), file("${id}_graph_spades_plasmid.gfa") into assembly_graph_spades_plasmid
-    file("${id}_scaffolds_spades_plasmid.fasta")
-
-    when:
-    isMode(['spades_plasmid','all'])
-     
-    script:
-    """
-    $PY36
-    spades.py -t ${params.cpu} -m ${params.mem} \
-    --phred-offset 33 --careful \
-    --pe1-1 ${sr1} \
-    --pe1-2 ${sr2} \
-    --nanopore ${lr} \
-    --plasmid \
-    -o spades
-    cp spades/assembly_graph_with_scaffolds.gfa ${id}_graph_spades_plasmid.gfa
-    cp spades/scaffolds.fasta ${id}_scaffolds_spades_plasmid.fasta
-    cp spades/contigs.fasta ${id}_contigs_spades_plasmid.fasta
     """
 }
 
@@ -316,10 +275,10 @@ process links_scaffolding{
     publishDir "${params.outDir}/${id}/03_${type}_links", mode: 'copy'   
     
     input:
-    set id, sr1, sr2, lr, scaffolds, type from files_spades .mix(files_spades_plasmid)
+    set id, lr, sr1, sr2, scaffolds, type from files_spades
     
     output:
-    set id, sr1, sr2, lr, file("${id}_${type}_scaffold_links.fasta"), type into files_links
+    set id, lr,  sr1, sr2, file("${id}_${type}_scaffold_links.fasta"), type into files_links
 
     when:
     isMode(['spades', 'all'])
@@ -339,7 +298,7 @@ process gapfiller{
    publishDir "${params.outDir}/${id}/03_gapfilling", mode: 'copy'   
    
    input:
-   set id, sr1, sr2, lr, scaffolds, type from files_links
+   set id, lr, sr1, sr2, scaffolds, type from files_links
           
    output:
    set id, file("${id}_gapfilled.fasta"), type into assembly_gapfiller
@@ -371,11 +330,11 @@ process canu{
     publishDir "${params.outDir}/${id}/02_assembly_canu", mode: 'copy'
 
     input:
-    set id, sr1, sr2, lr from files_pre_canu
+    set id, lr, sr1, sr2 from files_pre_canu
     file canu_settings
     
     output: 
-    set id, sr1, sr2, lr, file("${id}.contigs.fasta"), val('canu') into files_unpolished_canu
+    set id, lr, sr1, sr2, file("${id}.contigs.fasta"), val('canu') into files_unpolished_canu
     file("${id}.report")
     set id, val('canu'), file("${id}_graph_canu.gfa") into assembly_graph_canu
     file("${id}_assembly_canu.fasta")
@@ -393,12 +352,12 @@ process canu{
 }
 
 process miniasm{
-    // Ultra fast long read assembly using minimap2 and  miniasm
+// Ultra fast long read assembly using minimap2 and  miniasm
     tag{id}
     publishDir "${params.outDir}/${id}/02_assembly_miniasm", mode: 'copy'
 
     input:
-    set id, sr1, sr2, lr from files_pre_miniasm
+    set id, lr, sr1, sr2 from files_pre_miniasm
     
     output:
     set id, sr1, sr2, lr, file("${id}_assembly_miniasm.fasta") into files_noconsensus
@@ -417,15 +376,16 @@ process miniasm{
 }
 
 process racon {
+// Find consensus in miniasm assembly by realigning long reads
     tag{id}
-    // Improve result by realigning short reads to the miniasm assembly
     publishDir "${params.outDir}/${id}/03_racon", mode: 'copy'
     
     input:
-    set id, sr1, sr2, lr, assembly from files_noconsensus
+    set id, lr, sr1, sr2, assembly from files_noconsensus
 
     output:
-    set id, sr1, sr2, lr, file("${id}_consensus_racon.fasta"), val("miniasm") into files_unpolished_racon
+    set id, lr,  sr1, sr2, file("${id}_consensus_racon.fasta"), val("miniasm") into files_unpolished_racon
+
     file("${id}_consensus_racon.fasta")
 
     script:
@@ -443,10 +403,10 @@ process flye {
     publishDir "${params.outDir}/${id}/02_assembly_flye", mode: 'copy'
 
     input:
-    set id, sr1, sr2, lr from files_pre_flye
+    set id, lr, sr1, sr2 from files_pre_flye
 
     output:
-    set id, sr1, sr2, lr, file("flye/scaffolds.fasta"), val('flye') into files_unpolished_flye
+    set id, lr, sr1, sr2, file("flye/scaffolds.fasta"), val('flye') into files_unpolished_flye
     file("flye/assembly_info.txt")
     set id, val('flye'), file("flye/${id}_graph_flye.gfa") into assembly_graph_flye
     file("flye/${id}_assembly_flye.fasta")
@@ -465,7 +425,19 @@ process flye {
 }
 
 // Create channel for all unpolished files to be cleaned with Pilon
-files_pilon = files_unpolished_canu.mix(files_unpolished_racon, files_unpolished_flye)
+// Execute pilon only when short reads are available
+assembly_lr = Channel.create()
+if (!longReadOnly) {
+    files_unpolished_canu.mix(
+        files_unpolished_racon, 
+        files_unpolished_flye)
+        .set{files_pilon}
+} else {
+    files_unpolished_canu.mix(
+        files_unpolished_racon, 
+        files_unpolished_flye)
+        .set{assembly_lr}
+}
 
 process pilon{
 // Polishes long read assemly with short reads
@@ -473,7 +445,7 @@ process pilon{
     publishDir "${params.outDir}/${id}/03_pilon", mode: 'copy'
 
     input:
-    set id, sr1, sr2, lr, contigs, type from files_pilon
+    set id, lr, sr1, sr2, contigs, type from files_pilon
 
     output:
     set id, file("${id}_${type}_pilon.fasta"), type into assembly_pilon
@@ -494,14 +466,14 @@ process pilon{
 }
 
 // Merge channel output from different assembly paths
-assembly_merged = assembly_spades_simple.mix(assembly_gapfiller, assembly_unicycler, assembly_unicycler_lr, assembly_pilon).view()
+assembly_merged = assembly_spades_simple.mix(assembly_gapfiller, assembly_unicycler, assembly_pilon, assembly_lr).view()
 
 process draw_assembly_graph {
 // Use Bandage to draw a picture of the assembly graph
     publishDir "${params.outDir}/${id}/04_assembled_genomes", mode: 'copy'
 
     input:
-    set id, type, gfa from assembly_graph_spades.mix(assembly_graph_spades_plasmid, assembly_graph_unicycler, assembly_graph_unicycler_lr, assembly_graph_flye, assembly_graph_miniasm, assembly_graph_canu)
+    set id, type, gfa from assembly_graph_spades.mix(assembly_graph_unicycler, assembly_graph_flye, assembly_graph_miniasm, assembly_graph_canu)
 
     output:
     file("${id}_${type}_graph.svg")
@@ -693,7 +665,7 @@ def extractFastq(tsvFile) {
         // long read only
         def id = row[0]
         def lr = returnFile(row[1])
-        [id, lr]
+        [id, lr, "", "", ]
 
     } else {
         // hybrid assembly
@@ -701,7 +673,7 @@ def extractFastq(tsvFile) {
         def sr1 = returnFile(row[2])
         def sr2 = returnFile(row[3])
         def lr = returnFile(row[1])
-        [id, sr1, sr2, lr]
+        [id, lr, sr1, sr2]
         }
     }
 }

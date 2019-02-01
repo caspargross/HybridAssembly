@@ -1,0 +1,2 @@
+id	lr
+testset	testdata/test_read_nanopore.fastq.gz
