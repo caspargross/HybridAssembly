@@ -302,7 +302,7 @@ process links_scaffolding{
 
 process gapfiller{
    // Fill gaps in Scaffolds ('NNN') by finding matches in shortreads 
-   tag{data_id}
+   tag{id}
    publishDir "${params.outDir}/${id}/03_gapfilling", mode: 'copy'   
    
    input:
@@ -383,8 +383,11 @@ process miniasm{
     """
 }
 
+
+
 process racon {
 // Find consensus in miniasm assembly by realigning long reads
+// Reiterate 3 times
     tag{id}
     publishDir "${params.outDir}/${id}/03_racon", mode: 'copy'
     
@@ -399,8 +402,12 @@ process racon {
     script:
     """
     $PY36
-    minimap2 -x map-ont -t ${params.cpu} ${assembly} ${lr} > assembly_map.paf
-    racon -t ${params.cpu} ${lr} assembly_map.paf ${assembly} > ${id}_consensus_racon.fasta
+    minimap2 -x map-ont -t ${params.cpu} ${assembly} ${lr} > map1.paf
+    racon -t ${params.cpu} ${lr} map1.paf ${assembly} > cons1.fasta
+    minimap2 -x map-ont -t ${params.cpu} cons1.fasta ${lr} > map2.paf
+    racon -t ${params.cpu} ${lr} map2.paf cons1.fasta > cons2.fasta
+    minimap2 -x map-ont -t ${params.cpu} cons2.fasta ${lr} >map3.paf
+    racon -t ${params.cpu} ${lr} map3.paf cons2.fasta > ${id}_consensus_racon.fasta
     """
 }
 
