@@ -203,7 +203,7 @@ process sample_shortreads {
 
 // Combine results from lr preprocessing and optional sr preprocessing
 files_lr_cleaned.mix(files_filtered)
-    .into{files_pre_unicycler; files_pre_spades; files_pre_spades_plasmid; files_pre_canu; files_pre_miniasm; files_pre_flye}
+    .into{files_pre_unicycler; files_pre_spades; files_pre_canu; files_pre_miniasm; files_pre_flye}
 
 process unicycler{
 // complete bacterial hybrid assembly pipeline
@@ -426,7 +426,6 @@ process flye {
 
 // Create channel for all unpolished files to be cleaned with Pilon
 // Execute pilon only when short reads are available
-assembly_lr = Channel.create()
 if (!longReadOnly) {
     files_unpolished_canu.mix(
         files_unpolished_racon, 
@@ -436,7 +435,7 @@ if (!longReadOnly) {
     files_unpolished_canu.mix(
         files_unpolished_racon, 
         files_unpolished_flye)
-        .set{assembly_lr}
+        .set{assembly_merged}
 }
 
 process pilon{
@@ -466,7 +465,7 @@ process pilon{
 }
 
 // Merge channel output from different assembly paths
-assembly_merged = assembly_spades_simple.mix(assembly_gapfiller, assembly_unicycler, assembly_pilon, assembly_lr).view()
+assembly_merged = assembly_spades_simple.mix(assembly_gapfiller, assembly_unicycler, assembly_pilon )
 
 process draw_assembly_graph {
 // Use Bandage to draw a picture of the assembly graph
