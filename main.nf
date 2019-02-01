@@ -102,7 +102,7 @@ process filtlong {
     set id, lr, sr1, sr2 from files_porechop
     
     output:
-    set id, file("lr_filtlong.fastq"), sr1, sr2 into files_lr_cleaned, files_lr_filtered 
+    set id, file("lr_filtlong.fastq"), sr1, sr2 into files_lr_filtered 
     set id, file("lr_filtlong.fastq"), val('filtered') into files_nanoplot_filtered    
 
     script:
@@ -139,7 +139,14 @@ process nanoplot {
 
 files_to_seqpurge = Channel.create()
 // Send files to shortread preprocessing if available
-if (!longReadOnly) {
+if (longReadOnly) {
+    files_lr_filtered.into{
+        files_pre_unicycler;
+        files_pre_spades;
+        files_pre_canu;
+        files_pre_miniasm;
+        files_pre_flye}
+} else {
     files_lr_filtered.set{files_to_seqpurge}
 }
     
@@ -203,7 +210,7 @@ process sample_shortreads {
 } */
 
 // Combine results from lr preprocessing and optional sr preprocessing
-files_lr_cleaned.mix(files_filtered)
+files_filtered
     .into{files_pre_unicycler; files_pre_spades; files_pre_canu; files_pre_miniasm; files_pre_flye}
 
 process unicycler{
@@ -225,7 +232,7 @@ process unicycler{
     isMode(['unicycler', 'all'])
 
     script:
-    if (longReadOnly)
+    if (!longReadOnly)
         """ 
         $PY36
         unicycler -1 ${sr1} -2 ${sr2} -l ${lr} -o ${id} -t ${params.cpu}
