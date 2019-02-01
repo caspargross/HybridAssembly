@@ -26,7 +26,7 @@ Processes overview:
 */
 // Define valid run modes:
 validModes = ['spades_simple', 'spades', 'canu', 'unicycler', 'flye', 'miniasm', 'all']
-validModesLR = ['canu', 'unicycler', 'flye', 'miniasm', 'all']
+validModesLR = ['canu', 'unicycler', 'flye', 'miniasm', 'all_lr']
 
 // Display version
 if (params.version) exit 0, nextFlowMessage(), pipelineMessage()
@@ -49,12 +49,14 @@ files=Channel.create()
 // check if mode input is valid and create channel
 if (longReadOnly) {
     if (!modes.every{validModesLR.contains(it)}) {
-        exit 1,  log.info "Wrong execution mode, should be one of " + validModesLR
+        log.info "Wrong execution mode, should be one of " + validModesLR
+        exit 1
     }
     files = extractFastq(sampleFile);
 } else {
     if (!modes.every{validModes.contains(it)}) {
-        exit 1,  log.info "Wrong execution mode, should be one of " + validModes
+        log.info "Wrong execution mode, should be one of " + validModes
+        exit 1
     }
     files = extractFastq(sampleFile);
 }
@@ -138,6 +140,7 @@ process nanoplot {
 }
 
 files_to_seqpurge = Channel.create()
+files_filtered = Channel.create()
 // Send files to shortread preprocessing if available
 if (longReadOnly) {
     // Forward directly to assembly step
@@ -233,7 +236,7 @@ process unicycler{
     file("${id}/unicycler.log")
 
     when:
-    isMode(['unicycler', 'all'])
+    isMode(['unicycler', 'all', 'all_lr'])
 
     script:
     if (!longReadOnly)
@@ -267,6 +270,7 @@ process spades{
     isMode(['spades','spades_simple','all'])
      
     script:
+    if (!longReadOnly)
     """
     $PY36
     spades.py -t ${params.cpu} -m ${params.mem} \
@@ -352,7 +356,7 @@ process canu{
     file("${id}_assembly_canu.fasta")
 
     when:
-    isMode(['canu','all'])
+    isMode(['canu','all', 'all_lr'])
 
     script:
     """
@@ -376,7 +380,7 @@ process miniasm{
     set id, val('miniasm'), file("${id}_graph_miniasm.gfa") into assembly_graph_miniasm
 
     when:
-    isMode(['miniasm', 'all'])
+    isMode(['miniasm', 'all', 'all_lr'])
 
     script:
     """
@@ -431,7 +435,7 @@ process flye {
     file("flye/${id}_assembly_flye.fasta")
 
     when:
-    isMode(['flye', 'all'])
+    isMode(['flye', 'all', 'all_lr'])
 
     script:
     """
