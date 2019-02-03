@@ -376,7 +376,7 @@ process miniasm{
     set id, lr, sr1, sr2 from files_pre_miniasm
     
     output:
-    set id, sr1, sr2, lr, file("${id}_assembly_miniasm.fasta") into files_noconsensus
+    set id, lr, sr1, sr2, file("${id}_assembly_miniasm.fasta") into files_noconsensus
     set id, val('miniasm'), file("${id}_graph_miniasm.gfa") into assembly_graph_miniasm
 
     when:
