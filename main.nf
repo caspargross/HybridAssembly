@@ -139,29 +139,25 @@ process nanoplot {
     """
 }
 
+// Junction: Include short read preprocessing only when sr available
 files_to_seqpurge = Channel.create()
+files_preprocessed = Channel.create()
 files_filtered = Channel.create()
-// Send files to shortread preprocessing if available
-if (longReadOnly) {
-    // Forward directly to assembly step
-    files_lr_filtered.into{
+
+files_lr_filtered
+    .choice(files_preprocessed, files_to_seqpurge){
+        longReadOnly ? 0 : 1 
+        }
+// Combine channels after preprocessing and distribute to different assemblers
+files_preprocessed
+    .mix(files_filtered)
+    .into{
         files_pre_unicycler;
         files_pre_spades;
         files_pre_canu;
         files_pre_miniasm;
-        files_pre_flye}
-} else {
-    // Continue with sr preprocessing
-    files_lr_filtered.set{files_to_seqpurge}
-    
-    files_filtered.into{
-        files_pre_unicycler;
-        files_pre_spades;
-        files_pre_canu;
-        files_pre_miniasm;
-        files_pre_flye}
-}
-    
+        files_pre_flye
+        }
 
 process seqpurge {
 // Trim adapters on short read files
@@ -447,20 +443,27 @@ process flye {
     """
 }
 
-// Create channel for all unpolished files to be cleaned with Pilon
+// Junction! Create channel for all unpolished files to be cleaned with Pilon
 // Execute pilon only when short reads are available
 files_pilon = Channel.create()
-if (!longReadOnly) {
-    files_unpolished_canu.mix(
-        files_unpolished_racon, 
-        files_unpolished_flye)
-        .set{files_pilon}
-} else {
-    files_unpolished_canu.mix(
-        files_unpolished_racon, 
-        files_unpolished_flye)
-        .set{assembly_merged}
-}
+assembly_nopilon = Channel.create()
+assembly_pilon = Channel.create()
+assembly_merged = Channel.create()
+
+files_unpolished_canu.mix(
+    files_unpolished_racon, 
+    files_unpolished_flye)
+    .choice(files_pilon, assembly_nopilon){
+        longReadOnly ? 1 : 0}
+
+assembly_merged = assembly_nopilon
+    .map{it -> [it[0], it[4], it[5]]}
+    .mix(
+        assembly_spades_simple,
+        assembly_gapfiller,
+        assembly_unicycler,
+        assembly_pilon 
+        )
 
 process pilon{
 // Polishes long read assemly with short reads
@@ -488,8 +491,6 @@ process pilon{
     """
 }
 
-// Merge channel output from different assembly paths
-assembly_merged = assembly_spades_simple.mix(assembly_gapfiller, assembly_unicycler, assembly_pilon )
 
 process draw_assembly_graph {
 // Use Bandage to draw a picture of the assembly graph
@@ -531,7 +532,6 @@ process format_final_output {
 
 // Aggregate all assemblyes for a single sample
 final_files.groupTuple()
-    .view()
     .set{to_sample_stats}
 
 
