@@ -44,19 +44,7 @@ conda create -f envs/ha_py36.yml
 conda clean -a
 ```
 
-3) Download required databases
-
-Download and install [checkM](https://github.com/Ecogenomics/CheckM) Database:
-
-```
-mkdir -p /checkm_data && cd /checkm_data
-wget -q -O checkm_data.tar.gz https://data.ace.uq.edu.au/public/CheckM_databases/checkm_data_2015_01_16.tar.gz 
-tar -zxvf checkm_data.tar.gz && rm checkm_data.tar.gz
-
-source activate ha_py27 
-echo "checkm_data" | checkm data setRoot "checkm_data"
-source deactivate ha_py27
-```
+3) Download required database
 
 Download and include CARD-Antibiotic resistance database for [rgi](https://card.mcmaster.ca/analyze/rgi)
 

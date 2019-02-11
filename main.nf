@@ -131,6 +131,7 @@ process nanoplot {
     file '*.png'
     file '*.html'
     file '*.txt'
+    set id, file("*_NanoStats.txt"), type into stats_lr
     
     script:
     """
@@ -168,7 +169,7 @@ process seqpurge {
     
     output:
     set id, lr, file('sr1.fastq.gz'), file('sr2.fastq.gz') into files_purged
-//  set id, file("${id}_readQC.qcml") into per_sample_stats
+    set id, file("${id}_readQC.qcml") into stats_sr
     
     script:
     """
@@ -196,25 +197,6 @@ process sample_shortreads {
     seqtk sample -s100 !{sr2} ${srNumber} > sr2_filt.fastq 
     '''
 }
-
-/*process fastqc{
-// Create FASTQC quality check on short reads
-    tag{id}
-    
-    publishDir "${params.outDir}/${id}_${params.assembly}/fastQC/", mode: 'copy'
-
-    input: 
-    set id, sr1, sr2, lr from files_fastqc
-
-    output:
-    file "fastqc/\*"
-
-    script: 
-    """
-    mkdir -p fastqc
-    ${FASTQC} ${sr1} ${sr2} -o fastqc
-    """
-} */
 
 process unicycler{
 // complete bacterial hybrid assembly pipeline
@@ -387,8 +369,6 @@ process miniasm{
     """
 }
 
-
-
 process racon {
 // Find consensus in miniasm assembly by realigning long reads
 // Reiterate 3 times
@@ -530,22 +510,30 @@ process format_final_output {
 
 }
 
-// Aggregate all assemblyes for a single sample
-final_files.groupTuple()
-    .set{to_sample_stats}
+// Combine read stats (SeqPurge and Nanoplot)
+stats_lr
+    .mix(stats_sr)
+    .groupTuple()
+    .set{read_stats}
 
+// Aggregate all assemblyes for a single sample
+final_files
+    .groupTuple()
+    .join(read_stats)
+    .set{to_sample_stats}
 
 process per_sample_stats{
 // Calculates stats and creates plots for each sample
-    publishDir "${params.outDir}/${id}/04_assembled_genomes", mode: 'copy'
+    publishDir "${params.outDir}/${id}/05_assembly_qc", mode: 'copy'
     tag{id}
 
     input:
-    set id, filelist from to_sample_stats
+    set id, types, genomes, readStats, readStatTypes from to_sample_stats
 
     script:
     """
-    echo "DO NOTHING"
+    $PY36
+    sampleStats.py "${id}" "${types}" "${genomes}" "${readStats}" "${readStatTypes}"
     """
 }
 
@@ -640,14 +628,12 @@ def pipelineMessage() {
 
 def startMessage() {
   // Display start message
-  // this.nextflowMessage()
   // this.asciiArt()
   this.minimalInformationMessage()
 }
 
 workflow.onComplete {
   // Display complete message
-  // this.nextflowMessage()
   // this.minimalInformationMessage()
   log.info "Completed at: " + workflow.complete
   log.info "Duration    : " + workflow.duration
@@ -655,13 +641,6 @@ workflow.onComplete {
   log.info "Exit status : " + workflow.exitStatus
   log.info "Error report: " + (workflow.errorReport ?: '-')
 }
-
-//workflow.onError {
-  // Display error message
-  //this.nextflowMessage()
-  //log.info "Workflow execution stopped with the following message:"
-  //log.info "  " + workflow.errorMessage
-//}
 
 def isMode(it) {
   // returns whether a given list of arguments contains at least one valid mode
