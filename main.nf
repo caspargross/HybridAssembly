@@ -4,8 +4,9 @@
 ===============================================================================
    M I C R O B I A L   H Y B R I D   A S S E M B L Y   P I P E L I N E 
 ===============================================================================
-ouextflow pipeline for hybrid assembly, quality check and plasmid finding
-of bacterial genomes.
+Nextflow pipeline for complete assembly of bacterial genomes using Nanopore
+longread data or hybrid data with longread and short reads (Illumina)
+You can choose between different assemblers, look in help or documentation
 -------------------------------------------------------------------------------
 @ Author
 Caspar Groß <mail@caspar.one>
@@ -13,7 +14,7 @@ Caspar Groß <mail@caspar.one>
 @ Documentation
 https://github.com/caspargross/hybridassembly/README.md
 ------------------------------------------------------------------------------
-Processes overview:
+@ Processes overview:
 ... to be completed
 ------------------------------------------------------------------------------
 */
@@ -169,7 +170,7 @@ process seqpurge {
     
     output:
     set id, lr, file('sr1.fastq.gz'), file('sr2.fastq.gz') into files_purged
-    set id, file("${id}_readQC.qcml") into stats_sr
+    set id, file("${id}_readQC.qcml"), val("read_qc") into stats_sr
     
     script:
     """
@@ -501,25 +502,31 @@ process format_final_output {
     output:
     //set id, type into complete_status
     set id, type, file("${id}_${type}_final_assembly.fasta") into final_files
-    
+ 
     script:
+    data_source = longReadOnly ? "nanopore" : "hybrid"
     """
     $PY36
-    format_output.py ${contigs} ${id} ${type} ${params.minContigLength}
+    format_output.py ${contigs} ${id} ${type} ${params.minContigLength} ${data_source}
     """
 
 }
 
 // Combine read stats (SeqPurge and Nanoplot)
+read_stats = Channel.create()
 stats_lr
     .mix(stats_sr)
+    .view()
     .groupTuple()
     .set{read_stats}
 
 // Aggregate all assemblyes for a single sample
+to_sample_stats = Channel.create()
 final_files
+    .view()
     .groupTuple()
     .join(read_stats)
+    .view()
     .set{to_sample_stats}
 
 process per_sample_stats{
@@ -529,16 +536,34 @@ process per_sample_stats{
 
     input:
     set id, types, genomes, readStats, readStatTypes from to_sample_stats
+    
+    output:
+    set id, genomes, file("qc_data_${id}.json") into overall_stats
+    file("*.pdf")
 
     script:
     """
     $PY36
-    sampleStats.py "${id}" "${types}" "${genomes}" "${readStats}" "${readStatTypes}"
+    sample_stats.py "${id}" "${types}" "${genomes}" "${readStats}" "${readStatTypes}"
     """
 }
 
+process overall_stats{
+// Calculates stats for all samples and creates output file for PlasmIdent
+   publishDir "${params.outDir}/${id}/05_assembly_qc", mode: 'copy'
+   tag{id}
 
+   input:
+   set id, genomes, qc_file from overall_stats
 
+   script:
+   """
+   $PY36 
+   echo ${id}
+   echo ${genomes}
+   echo ${qc_file}
+   """
+}
 /*
 ================================================================================
 =                               F U N C T I O N S                              =
@@ -572,12 +597,6 @@ def helpMessage() {
   log.info "    filter final contigs for minimum length (Default: 1000)"
   log.info "          "
   log.info "  Options:"
-//  log.info "    --shortRead"
-//  log.info "      Uses only short reads. Only 'spades_simple', 'spades_plasmid' and 'unicycler' mode."
-//  log.info "    --longRead"
-//  log.info "      Uses long read only. Only 'unicycler', 'miniasm', 'canu' and 'flye'"
-//  log.info "    --fast"
-//  log.info "      Skips some steps to run faster. Only one cycle of error correction'" 
   log.info "    --version"
   log.info "      Displays pipeline version"
   log.info "           "
@@ -586,16 +605,14 @@ def helpMessage() {
   log.info "    Pipeline runs with locally installed conda environments (found in env/ folder)"
   log.info "    -profile test "
   log.info "    Runs complete pipeline on small included test dataset"
+  log.info "    -profile testlr "
+  log.info "    Runs complete pipeline on nanopore only test dataset"
   log.info "    -profile localtest "
   log.info "    Runs test profile with locally installed conda environments"
-
-
 }
 
-
-
 def grabRevision() {
-  // Return the same string executed from github or not
+// Return the same string executed from github or not
   return workflow.revision ?: workflow.commitId ?: workflow.scriptId.substring(0,10)
 }
 
@@ -668,7 +685,7 @@ def extractFastq(tsvFile) {
         // long read only
         def id = row[0]
         def lr = returnFile(row[1])
-        [id, lr, "", "", ]
+        [id, lr, "", ""]
 
     } else {
         // hybrid assembly
