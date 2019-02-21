@@ -557,7 +557,7 @@ files_init
     .collectFile(newLine: true) {
         it -> 
             ['file_paths_plasmident.tsv', it[0] + '\t' + it[1] + '\t' + it[5]]
-
+    }
 /*
 process write_plasmident_input{
 // Write path file with input locations for plasmIDent
@@ -710,11 +710,10 @@ def extractFastq(tsvFile) {
 }
 
 def checkLongReadOnly(tsvFile) {
-  // Checks if tsv files contains only longreads of lr + illumina
-  header = tsvFile.readLines().get(1)
-  nrow = header.split('\t').size()
-
-  if (nrow < 3) {
+  // Checks if tsv files contains only longreads or lr + illumina
+  row = tsvFile.readLines().get(0)
+  ncol = row.split('\t').size()
+  if (ncol < 3) {
     true 
   } else {
     false 
