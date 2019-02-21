@@ -11,12 +11,8 @@ inputFile = sys.argv[1]
 sampleID = sys.argv[2]
 assemblyType = sys.argv[3]
 minLength = int(sys.argv[4])
-<<<<<<< HEAD
 data_type = sys.argv[5]
-=======
 longReadOnly = bool(sys.argv[5])
->>>>>>> c636f311d0aab14c1ad63234c6a330ca56ca440a
-
 
 long_contigs = []
 input_handle=open(inputFile, 'rU')

@@ -74,12 +74,14 @@ startMessage()
 ------------------------------------------------------------------------------
 */
 
+files.into{files_init; files_preprocessing}
+
 process porechop { 
 // Trim adapter sequences on long read nanopore files
     tag{id}
         
     input:
-    set id, lr, sr1, sr2 from files
+    set id, lr, sr1, sr2 from files_preprocessing
     
     output:
     set id, file('lr_porechop.fastq'), sr1, sr2 into files_porechop
@@ -472,7 +474,6 @@ process pilon{
     """
 }
 
-
 process draw_assembly_graph {
 // Use Bandage to draw a picture of the assembly graph
     tag{id}
@@ -502,6 +503,7 @@ process format_final_output {
     output:
     //set id, type into complete_status
     set id, type, file("${id}_${type}_final_assembly.fasta") into final_files
+    set id, type, val("${params.outDir}/${id}/04_assembled_genomes/${id}_${type}_final_assembly.fasta") into final_files_plasmident
  
     script:
     data_source = longReadOnly ? "nanopore" : "hybrid"
@@ -509,7 +511,6 @@ process format_final_output {
     $PY36
     format_output.py ${contigs} ${id} ${type} ${params.minContigLength} ${data_source}
     """
-
 }
 
 // Combine read stats (SeqPurge and Nanoplot)
@@ -538,8 +539,9 @@ process per_sample_stats{
     set id, types, genomes, readStats, readStatTypes from to_sample_stats
     
     output:
-    set id, genomes, file("qc_data_${id}.json") into overall_stats
+//  set id, genomes, file("qc_data_${id}.json") into overall_stats
     file("*.pdf")
+    file("*.png")
 
     script:
     """
@@ -548,22 +550,31 @@ process per_sample_stats{
     """
 }
 
-process overall_stats{
-// Calculates stats for all samples and creates output file for PlasmIdent
-   publishDir "${params.outDir}/${id}/05_assembly_qc", mode: 'copy'
-   tag{id}
 
-   input:
-   set id, genomes, qc_file from overall_stats
+files_init
+    .join(final_files_plasmident)
+    .view()
+    .collectFile(', newLine: true) {
+        it -> 
+            ['file_paths_plasmident.tsv', it[0] + '\t' + it[1] + '\t' + it[5]]
 
-   script:
-   """
-   $PY36 
-   echo ${id}
-   echo ${genomes}
-   echo ${qc_file}
-   """
-}
+/*
+process write_plasmident_input{
+// Write path file with input locations for plasmIDent
+    publishDir "${params.outDir}/", mode: copy
+    publishDir "${PWD}/", mode: copy
+    
+    input:
+    set id, lr, sr1, sr2, type, assembly_path from files_init.join(final_files_plasmident)
+
+    script:
+    """
+    echo "${id}	{assembly}	lr" > file_paths_plasmident.tsv
+    """
+*/
+
+
+
 /*
 ================================================================================
 =                               F U N C T I O N S                              =
@@ -576,7 +587,7 @@ def helpMessage() {
   log.info "  Usage:"
   log.info "       nextflow run caspargross/hybridAssembly --input <file.csv> --mode <mode1,mode2...> [options] "
   log.info "    --input <file.tsv>"
-  log.info "       TSV file containing paths to read files (id | shortread1| shortread2 | longread)"
+  filtlong.info "       TSV file containing paths to read files (id | shortread1| shortread2 | longread)"
   log.info "    --mode {${validModes}}"
   log.info "       Default: none, choose one or multiple modes to run the pipeline "
   log.info " "
@@ -679,7 +690,7 @@ def extractFastq(tsvFile) {
   // Extracts Read Files from TSV
   Channel.from(tsvFile)
   .ifEmpty {exit 1, log.info "Cannot find path file ${tsvFile}"}
-  .splitCsv(sep:'\t', skip: 1)
+  .splitCsv(sep:'\t')
   .map { row ->
     if (longReadOnly) {
         // long read only
@@ -709,7 +720,6 @@ def checkLongReadOnly(tsvFile) {
     false 
   }
 }
-
 
 // Check file extension
   static def checkFileExtension(it, extension) {
