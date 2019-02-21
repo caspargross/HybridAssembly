@@ -554,7 +554,7 @@ process per_sample_stats{
 files_init
     .join(final_files_plasmident)
     .view()
-    .collectFile(', newLine: true) {
+    .collectFile(newLine: true) {
         it -> 
             ['file_paths_plasmident.tsv', it[0] + '\t' + it[1] + '\t' + it[5]]
 
