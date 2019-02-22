@@ -206,7 +206,7 @@ process unicycler{
 // complete bacterial hybrid assembly pipeline
 // accepts both hybrid data and longread only
     tag{id}
-    publishDir "${params.outDir}/${id}/assembly/unicycler", mode: 'copy'   
+    publishDir "${params.outDir}/${id}/assembly/", mode: 'copy'   
    
     input:
     set id, lr, sr1, sr2 from files_pre_unicycler
@@ -224,7 +224,7 @@ process unicycler{
     if (!longReadOnly)
         """ 
         $PY36
-        unicycler -1 ${sr1} -2 ${sr2} -l ${lr} -o ${id} -t ${params.cpu}
+        unicycler -1 ${sr1} -2 ${sr2} -l ${lr} -o unicycler -t ${params.cpu}
         """
     else 
         """
@@ -236,7 +236,7 @@ process unicycler{
 process spades{
 // Spades hybrid Assembly running normal configuration
     tag{id}
-    publishDir "${params.outDir}/${id}/assembly/spades", mode: 'copy'   
+    publishDir "${params.outDir}/${id}/assembly/spades", mode: 'copy', pattern: "${id}*"
 
     input:
     set id, lr,  sr1, sr2 from files_pre_spades  
@@ -403,7 +403,7 @@ process flye {
 // Assembly step using Flye assembler
     errorStrategy 'ignore'
     tag{id}
-    publishDir "${params.outDir}/${id}/assembly/flye", mode: 'copy'
+    publishDir "${params.outDir}/${id}/assembly", mode: 'copy'
 
     input:
     set id, lr, sr1, sr2 from files_pre_flye
@@ -552,7 +552,6 @@ process per_sample_stats{
 
 files_init
     .join(final_files_plasmident)
-    .view()
     .collectFile(newLine: true) {
         it -> 
             ['file_paths_plasmident.tsv', it[0] + '\t' + it[1] + '\t' + it[5]]

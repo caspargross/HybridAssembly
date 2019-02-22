@@ -158,6 +158,7 @@ plt.ylabel("Contig length (kbp)")
 plt.legend(assemblers)
 plt.title("NX plot")
 plt.savefig(fname="nx_plot.pdf")
+plt.savefig(fname="nx_plot.png")
 
 # Contig Lengths plot
 lengths = [dat[id][x]["lengths"] for x in assemblers]
@@ -178,8 +179,10 @@ df_len.plot.barh(stacked=True,
 ax.set_xlabel("Cumulative contig length")
 ax.set_ylabel("Assembly types")
 plt.plot(N90s, assemblers)
+plt.savefig(fname="contigs.pdf")
+plt.savefig(fname="contigs.png")
+#plt.show()
 
-plt.show()
 
 # Export data:
 with open('qc_data_' + id + '.json', 'w') as fp:
