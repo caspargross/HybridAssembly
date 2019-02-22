@@ -212,10 +212,10 @@ process unicycler{
     set id, lr, sr1, sr2 from files_pre_unicycler
 
     output:
-    set id, file("${id}/assembly.fasta"), val('unicycler') into assembly_unicycler
-    set id, val('unicycler'), file("${id}/assembly.gfa") into assembly_graph_unicycler
-    file("${id}/assembly.fasta")
-    file("${id}/unicycler.log")
+    set id, file("unicycler/assembly.fasta"), val('unicycler') into assembly_unicycler
+    set id, val('unicycler'), file("unicycler/assembly.gfa") into assembly_graph_unicycler
+    file("unicycler/assembly.fasta")
+    file("unicycler/unicycler.log")
 
     when:
     isMode(['unicycler', 'all', 'all_lr'])
@@ -549,12 +549,14 @@ process per_sample_stats{
     """
 }
 
-
 files_init
-    .join(final_files_plasmident)
-    .collectFile(newLine: true) {
+    .combine(final_files_plasmident)
+    .view()
+    .collectFile(newLine: true, 
+		storeDir : workflow.launchDir) {
         it -> 
-            ['file_paths_plasmident.tsv', it[0] + '\t' + it[1] + '\t' + it[5]]
+            ['file_paths_plasmident.tsv', 
+		it[0] + '\t' + it[1].toString() + '\t' + it[6].toString()]
     }
 /*
 process write_plasmident_input{
