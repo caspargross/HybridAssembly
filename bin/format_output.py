@@ -12,12 +12,10 @@ sampleID = sys.argv[2]
 assemblyType = sys.argv[3]
 minLength = int(sys.argv[4])
 data_type = sys.argv[5]
-longReadOnly = bool(sys.argv[5])
 
 long_contigs = []
 input_handle=open(inputFile, 'rU')
-output_handle=open(sampleID+'_'+assemblyType+'_final_assembly.fasta', 'w')
-data_type = "nanopore" if longReadOnly else "hybrid"
+output_handle=open(sampleID+'_'+assemblyType+'_genome.fasta', 'w')
 
 for index, record in enumerate(SeqIO.parse(input_handle, 'fasta')):
     if len(record.seq) >= minLength:

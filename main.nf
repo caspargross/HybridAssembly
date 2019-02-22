@@ -518,17 +518,14 @@ process format_final_output {
 read_stats = Channel.create()
 stats_lr
     .mix(stats_sr)
-    .view()
     .groupTuple()
     .set{read_stats}
 
 // Aggregate all assemblyes for a single sample
 to_sample_stats = Channel.create()
 final_files
-    .view()
     .groupTuple()
     .join(read_stats)
-    .view()
     .set{to_sample_stats}
 
 process per_sample_stats{
