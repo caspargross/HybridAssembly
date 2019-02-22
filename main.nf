@@ -125,7 +125,7 @@ process filtlong {
 process nanoplot {
 // Quality check for nanopore reads and Quality/Length Plots
     tag{id}
-    publishDir "${params.outDir}/${id}/01_qc_longread/${type}/", mode: 'copy'
+    publishDir "${params.outDir}/${id}/qc/longread_${type}/", mode: 'copy'
     
     input:
     set id, lr, type from files_nanoplot_raw.mix(files_nanoplot_filtered)
@@ -165,6 +165,7 @@ files_preprocessed
 
 process seqpurge {
 // Trim adapters on short read files
+    publishDir "${params.outDir}/${id}/qc/shortread/", mode: 'copy', pattern: "${id}_readQC.qcml"
     tag{id}
     
     input:
@@ -205,7 +206,7 @@ process unicycler{
 // complete bacterial hybrid assembly pipeline
 // accepts both hybrid data and longread only
     tag{id}
-    publishDir "${params.outDir}/${id}/02_assembly_unicycler", mode: 'copy'   
+    publishDir "${params.outDir}/${id}/assembly/unicycler", mode: 'copy'   
    
     input:
     set id, lr, sr1, sr2 from files_pre_unicycler
@@ -235,7 +236,7 @@ process unicycler{
 process spades{
 // Spades hybrid Assembly running normal configuration
     tag{id}
-    publishDir "${params.outDir}/${id}/02_assembly_spades", mode: 'copy'   
+    publishDir "${params.outDir}/${id}/assembly/spades", mode: 'copy'   
 
     input:
     set id, lr,  sr1, sr2 from files_pre_spades  
@@ -269,7 +270,7 @@ process spades{
 process links_scaffolding{
     // Scaffolding of assembled contigs using LINKS using long reads
     tag{id}
-    publishDir "${params.outDir}/${id}/03_${type}_links", mode: 'copy'   
+    publishDir "${params.outDir}/${id}/assembly_processed/links_${type}", mode: 'copy'   
     
     input:
     set id, lr, sr1, sr2, scaffolds, type from files_spades
@@ -292,7 +293,7 @@ process links_scaffolding{
 process gapfiller{
    // Fill gaps in Scaffolds ('NNN') by finding matches in shortreads 
    tag{id}
-   publishDir "${params.outDir}/${id}/03_gapfilling", mode: 'copy'   
+   publishDir "${params.outDir}/${id}/assembly_processed/gapfiller", mode: 'copy'   
    
    input:
    set id, lr, sr1, sr2, scaffolds, type from files_links
@@ -324,7 +325,7 @@ process canu_parameters {
 process canu{
     // Canu assembly tool for long reads
     tag{id}
-    publishDir "${params.outDir}/${id}/02_assembly_canu", mode: 'copy'
+    publishDir "${params.outDir}/${id}/assembly/canu", mode: 'copy'
 
     input:
     set id, lr, sr1, sr2 from files_pre_canu
@@ -351,7 +352,7 @@ process canu{
 process miniasm{
 // Ultra fast long read assembly using minimap2 and  miniasm
     tag{id}
-    publishDir "${params.outDir}/${id}/02_assembly_miniasm", mode: 'copy'
+    publishDir "${params.outDir}/${id}/assembly/miniasm", mode: 'copy'
 
     input:
     set id, lr, sr1, sr2 from files_pre_miniasm
@@ -376,7 +377,7 @@ process racon {
 // Find consensus in miniasm assembly by realigning long reads
 // Reiterate 3 times
     tag{id}
-    publishDir "${params.outDir}/${id}/03_racon", mode: 'copy'
+    publishDir "${params.outDir}/${id}/assembly_processed/racon", mode: 'copy'
     
     input:
     set id, lr, sr1, sr2, assembly from files_noconsensus
@@ -402,7 +403,7 @@ process flye {
 // Assembly step using Flye assembler
     errorStrategy 'ignore'
     tag{id}
-    publishDir "${params.outDir}/${id}/02_assembly_flye", mode: 'copy'
+    publishDir "${params.outDir}/${id}/assembly/flye", mode: 'copy'
 
     input:
     set id, lr, sr1, sr2 from files_pre_flye
@@ -451,7 +452,7 @@ assembly_merged = assembly_nopilon
 process pilon{
 // Polishes long read assemly with short reads
     tag{id}
-    publishDir "${params.outDir}/${id}/03_pilon", mode: 'copy'
+    publishDir "${params.outDir}/${id}/assembly_processed/pilon", mode: 'copy'
 
     input:
     set id, lr, sr1, sr2, contigs, type from files_pilon
@@ -477,7 +478,7 @@ process pilon{
 process draw_assembly_graph {
 // Use Bandage to draw a picture of the assembly graph
     tag{id}
-    publishDir "${params.outDir}/${id}/04_assembled_genomes", mode: 'copy'
+    publishDir "${params.outDir}/${id}/assembly/graph_plot/", mode: 'copy'
 
     input:
     set id, type, gfa from assembly_graph_spades.mix(assembly_graph_unicycler, assembly_graph_flye, assembly_graph_miniasm, assembly_graph_canu)
@@ -494,7 +495,7 @@ process draw_assembly_graph {
 
 process format_final_output {
 // Filter contigs by length and give consistenc contig naming
-    publishDir "${params.outDir}/${id}/04_assembled_genomes", mode: 'copy'
+    publishDir "${params.outDir}/${id}/genomes/", mode: 'copy'
     tag{id}
 
     input:
@@ -502,8 +503,8 @@ process format_final_output {
 
     output:
     //set id, type into complete_status
-    set id, type, file("${id}_${type}_final_assembly.fasta") into final_files
-    set id, type, val("${params.outDir}/${id}/04_assembled_genomes/${id}_${type}_final_assembly.fasta") into final_files_plasmident
+    set id, type, file("${id}_${type}_genome.fasta") into final_files
+    set id, type, val("${params.outDir}/${id}/genomes/${id}_${type}_genome.fasta") into final_files_plasmident
  
     script:
     data_source = longReadOnly ? "nanopore" : "hybrid"
@@ -532,7 +533,8 @@ final_files
 
 process per_sample_stats{
 // Calculates stats and creates plots for each sample
-    publishDir "${params.outDir}/${id}/05_assembly_qc", mode: 'copy'
+    publishDir "${params.outDir}/${id}/qc/assembly_qc", mode: 'copy', pattern: "*.{pdf,png}"
+    publishDir "${params.outDir}/${id}/qc", mode: 'copy', pattern: "qc_summary_${id}.json"
     tag{id}
 
     input:
