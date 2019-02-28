@@ -13,19 +13,19 @@ sampleID/
 │   ├── assembly_qc/
 │   └── qc_sampleID.json
 ├── assembly/
-│   ├── graph_plot/
-│   ├── miniasm/
-│   ├── spades/
-│   ├── unicycler/
-│   ├── canu/
-│   └── flye/
+│   ├── graph_plot/         
+│   ├── miniasm/            (if mode selected)
+│   ├── spades/             (if mode selected)
+│   ├── unicycler/          (if mode selected)
+│   ├── canu/               (if mode selected)
+│   └── flye/               (if mode selected)
 ├── assembly_processed/
-│   ├── racon/
-│   ├── pilon/
-│   └── link/
-├── genomes/
-├── plasmids/
-└── plasmIDent
+│   ├── racon/              (if mode selected)
+│   ├── pilon/              (if mode selected)
+│   └── link/               (if mode selected)
+├── plasmid_analysis/
+├── genomes/    
+└── plasmids/
 ```
 
 
