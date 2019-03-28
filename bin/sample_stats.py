@@ -144,9 +144,10 @@ for i, s in enumerate(stattypes):
 
 # Calculate coverages
 for a in assemblers:
-    dat[id][a]["sr_cov"] = (dat[id]["read_qc"]["basessequencedmb"]["value_num"] * 1e6)/ dat[id][a]["total_length"]
     dat[id][a]["lr_cov_raw"] = dat[id]["raw"]["summary"]["totalbases"]["value_num"] / dat[id][a]["total_length"]
     dat[id][a]["lr_cov_filtered"] = dat[id]["filtered"]["summary"]["totalbases"]["value_num"] / dat[id][a]["total_length"]
+    if "read_qc" in dat[id]:
+        dat[id][a]["sr_cov"] = (dat[id]["read_qc"]["basessequencedmb"]["value_num"] * 1e6)/ dat[id][a]["total_length"]
 
 # Create plots -------------------------------------------------------
 

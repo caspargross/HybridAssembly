@@ -551,7 +551,7 @@ process per_sample_stats{
 
 files_init
     .combine(final_files_plasmident)
-    .view()
+//  .view()
     .collectFile(newLine: true, 
 		storeDir : workflow.launchDir) {
         it -> 
