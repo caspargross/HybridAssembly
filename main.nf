@@ -229,7 +229,7 @@ process unicycler{
     else 
         """
         $PY36
-        unicycler -l ${lr} -o ${id} -t ${params.cpu}
+        unicycler -l ${lr} -o unicycler -t ${params.cpu}
         """
 }
 
