@@ -6,14 +6,13 @@ channels:
 dependencies:
   - bcftools=1.9=h4da6232_0
   - blast=2.6.0=boost1.64_2
-  - canu=1.4=1
+  - canu=1.8=pl526h470a237_0
   - circos=0.69.6=2
   - dendropy=4.4.0=py_0
   - diamond=0.8.36=hd28b015_2
   - flye=2.3.5=py27ha92aebf_3
   - gap2seq=2.1=boost1.64_zlib1.2.11_3
   - glimmerhmm=3.0.4=h2d50403_2
-  - gnuplot=5.0.4=ncurses5.9_1
   - hmmer=3.2.1=hfc679d8_0
   - htslib=1.9=hc238db4_4
   - java-jdk=8.0.92=1
@@ -75,42 +74,48 @@ dependencies:
   - boost=1.64.0=py27_4
   - boost-cpp=1.64.0=1
   - ca-certificates=2019.3.9=hecc5488_0
+  - cairo=1.14.10=0
   - certifi=2019.3.9=py27_0
-  - curl=7.64.1=hf8cf82a_0
+  - curl=7.64.0=h646f8bb_0
+  - dbus=1.13.0=h4e0c4b3_1000
   - filetype=1.0.1=py_0
-  - freetype=2.10.0=he983fc9_0
+  - fontconfig=2.12.6=0
+  - freetype=2.8.1=hfa320df_1
   - gettext=0.19.8.1=h5e8e0c9_1
   - giflib=5.1.4=h470a237_1
-  - git=2.21.0=pl526h2882143_0
-  - glib=2.56.2=had28632_1001
+  - git=2.20.1=pl526hc122a05_1001
+  - glib=2.55.0=h464dc38_2
   - gmp=6.1.2=hfc679d8_0
+  - gnuplot=5.2.3=0
   - gnutls=3.5.19=h2a4e5f8_1
   - graphite2=1.3.12=hfc679d8_1
-  - harfbuzz=1.9.0=he243708_1001
+  - gst-plugins-base=1.12.5=h3865690_1000
+  - gstreamer=1.12.5=h61a6719_0
+  - harfbuzz=1.7.6=0
   - joblib=0.12.5=py_0
   - jpeg=9c=h14c3975_1001
-  - krb5=1.16.3=h05b26f9_1001
-  - libcurl=7.64.1=hda55be3_0
+  - krb5=1.16.3=hc83ff2d_1000
+  - libcurl=7.64.0=h01ee5af_0
   - libedit=3.1.20170329=0
   - libgcc=7.2.0=h69d50b8_2
-  - libgd=2.2.5=h5400f36_4
+  - libgd=2.2.5=3
   - libiconv=1.15=h470a237_3
-  - libpng=1.6.36=h84994c4_1000
-  - libssh2=1.8.2=h22169c7_2
+  - libpng=1.6.34=ha92aebf_2
+  - libssh2=1.8.0=h1ad7b7a_1003
   - libtiff=4.0.9=he6b73bb_1
   - libwebp=0.5.2=7
-  - matplotlib=2.2.2=py27h8e2386c_2
+  - matplotlib=2.2.2=py27_1
   - mkl_fft=1.0.10=py27_0
   - mkl_random=1.0.2=py27_0
   - ncurses=5.9=10
   - nettle=3.3=0
   - openblas=0.3.5=h9ac9557_1001
-  - openssl=1.1.1b=h14c3975_1
-  - pango=1.40.14=he752989_2
+  - openssl=1.0.2r=h14c3975_0
+  - pango=1.40.14=0
   - perl-xml-parser=2.44_01=pl526h3a4f0e9_1
   - pixman=0.34.0=h470a237_3
   - pyqt=5.6.0=py27h13b7fb3_1008
-  - python=2.7.15=h721da81_1008
+  - python=2.7.15=h938d71a_1006
   - readline=7.0=0
   - sip=4.18=py27_1
   - tk=8.6.9=h84994c4_1001
@@ -118,16 +123,11 @@ dependencies:
   - backports.functools_lru_cache=1.5=py27_1
   - backports_abc=0.5=py27_0
   - bzip2=1.0.6=h14c3975_5
-  - cairo=1.14.12=h8948797_3
   - click=6.7=py27_0
   - cycler=0.10.0=py27_0
-  - dbus=1.13.6=h746ee38_0
   - expat=2.2.6=he6710b0_0
-  - fontconfig=2.13.0=h9420a91_0
   - functools32=3.2.3.2=py27_1
   - futures=3.2.0=py27_0
-  - gst-plugins-base=1.14.0=hbbd80ab_1
-  - gstreamer=1.14.0=hb453b48_1
   - icu=58.2=h9c2bf20_1
   - intel-openmp=2019.0=118
   - jinja2=2.10=py27_0
@@ -152,7 +152,7 @@ dependencies:
   - python-dateutil=2.7.3=py27_0
   - pytz=2018.5=py27_0
   - pyyaml=3.13=py27h14c3975_0
-  - qt=5.6.3=h8bf5577_3
+  - qt=5.6.2=h974d657_12
   - scipy=1.1.0=py27h9b217d5_1
   - setuptools=40.2.0=py27_0
   - singledispatch=3.4.0.3=py27_0
@@ -168,4 +168,6 @@ dependencies:
     - decorator==4.2.1
     - networkx==2.1
     - poretools==0.6.0
+    - recycler==0.62
     - seaborn==0.8.1
+
