@@ -343,9 +343,9 @@ process canu{
     script:
     """
     $PY27
-    canu -s ${canu_settings} -p ${id} -nanopore-raw ${lr}
-    cp ${id}.unitigs.gfa ${id}_graph_canu.gfa
-    cp ${id}.contigs.fasta ${id}_assembly_canu.fasta
+    canu -s ${canu_settings} -p ${id} -d canu -nanopore-raw ${lr}
+    cp canu/${id}.unitigs.gfa ${id}_graph_canu.gfa
+    cp canu/${id}.contigs.fasta ${id}_assembly_canu.fasta
     """
 }
 
