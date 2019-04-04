@@ -314,8 +314,7 @@ process canu_parameters {
     echo \
     'genomeSize=$params.genomeSize 
     minReadLength=1000
-    maxMemory=${task.memory} 
-    maxThreads=${task.cpus}' > canu_settings.txt
+    ' > canu_settings.txt
     """
 }
 
