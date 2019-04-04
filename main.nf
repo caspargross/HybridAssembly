@@ -14,9 +14,6 @@ Caspar Groß <mail@caspar.one>
 @ Documentation
 https://github.com/caspargross/hybridassembly/README.md
 ------------------------------------------------------------------------------
-@ Processes overview:
-... to be completed
-------------------------------------------------------------------------------
 */
 
 
@@ -30,7 +27,7 @@ validModes = ['spades_simple', 'spades', 'canu', 'unicycler', 'flye', 'miniasm',
 validModesLR = ['canu', 'unicycler', 'flye', 'miniasm', 'all_lr']
 
 // Display version
-if (params.version) exit 0, nextFlowMessage(), pipelineMessage()
+if (params.version) exit 0, pipelineMessage()
 
 // Check required input parameters
 if (params.help) exit 0, helpMessage()
@@ -92,7 +89,7 @@ process porechop {
     """
     $PY36
     cat ${lr} > nanoreads.fastq
-    porechop -i nanoreads.fastq -t ${params.cpu} -o lr_porechop.fastq
+    porechop -i nanoreads.fastq -t ${task.cpus} -o lr_porechop.fastq
     """
 }
 
@@ -139,7 +136,7 @@ process nanoplot {
     script:
     """
     $PY36
-    NanoPlot -t ${params.cpu} -p ${type}_  --title ${id}_${type} -c darkblue --fastq ${lr}
+    NanoPlot -t ${task.cpus} -p ${type}_  --title ${id}_${type} -c darkblue --fastq ${lr}
     """
 }
 
@@ -178,7 +175,7 @@ process seqpurge {
     script:
     """
     $PY27  
-    SeqPurge -in1 ${sr1} -in2 ${sr2} -threads ${params.cpu} -out1 sr1.fastq.gz -out2 sr2.fastq.gz -qc ${id}_readQC.qcml 
+    SeqPurge -in1 ${sr1} -in2 ${sr2} -threads ${task.cpus} -out1 sr1.fastq.gz -out2 sr2.fastq.gz -qc ${id}_readQC.qcml 
     """
 }
 
@@ -224,12 +221,12 @@ process unicycler{
     if (!longReadOnly)
         """ 
         $PY36
-        unicycler -1 ${sr1} -2 ${sr2} -l ${lr} -o unicycler -t ${params.cpu}
+        unicycler -1 ${sr1} -2 ${sr2} -l ${lr} -o unicycler -t ${task.cpus}
         """
     else 
         """
         $PY36
-        unicycler -l ${lr} -o unicycler -t ${params.cpu}
+        unicycler -l ${lr} -o unicycler -t ${task.cpus}
         """
 }
 
@@ -255,7 +252,7 @@ process spades{
     if (!longReadOnly)
     """
     $PY36
-    spades.py -t ${params.cpu} -m ${params.mem} \
+    spades.py -t ${task.cpus} -m ${task.memory} \
     --phred-offset 33 --careful \
     --pe1-1 ${sr1} \
     --pe1-2 ${sr2} \
@@ -304,7 +301,7 @@ process gapfiller{
    script:
    """
    $PY27
-   Gap2Seq -scaffolds ${scaffolds} -reads ${sr1},${sr2} -filled ${id}_gapfilled.fasta  -nf-cores ${params.cpu}
+   Gap2Seq -scaffolds ${scaffolds} -reads ${sr1},${sr2} -filled ${id}_gapfilled.fasta  -nf-cores ${task.cpus}
    """
 }
 
@@ -317,8 +314,8 @@ process canu_parameters {
     echo \
     'genomeSize=$params.genomeSize 
     minReadLength=1000
-    maxMemory=$params.mem 
-    maxThreads=$params.cpu' > canu_settings.txt
+    maxMemory=${task.memory} 
+    maxThreads=${task.cpus}' > canu_settings.txt
     """
 }
 
@@ -367,7 +364,7 @@ process miniasm{
     script:
     """
     $PY36
-    minimap2 -x ava-ont -t ${params.cpu} ${lr} ${lr} > ovlp.paf
+    minimap2 -x ava-ont -t ${task.cpus} ${lr} ${lr} > ovlp.paf
     miniasm -f ${lr} ovlp.paf > ${id}_graph_miniasm.gfa
     awk '/^S/{print ">"\$2"\\n"\$3}' ${id}_graph_miniasm.gfa | fold > ${id}_assembly_miniasm.fasta
     """
@@ -390,12 +387,12 @@ process racon {
     script:
     """
     $PY36
-    minimap2 -x map-ont -t ${params.cpu} ${assembly} ${lr} > map1.paf
-    racon -t ${params.cpu} ${lr} map1.paf ${assembly} > cons1.fasta
-    minimap2 -x map-ont -t ${params.cpu} cons1.fasta ${lr} > map2.paf
-    racon -t ${params.cpu} ${lr} map2.paf cons1.fasta > cons2.fasta
-    minimap2 -x map-ont -t ${params.cpu} cons2.fasta ${lr} >map3.paf
-    racon -t ${params.cpu} ${lr} map3.paf cons2.fasta > ${id}_consensus_racon.fasta
+    minimap2 -x map-ont -t ${task.cpus} ${assembly} ${lr} > map1.paf
+    racon -t ${task.cpus} ${lr} map1.paf ${assembly} > cons1.fasta
+    minimap2 -x map-ont -t ${task.cpus} cons1.fasta ${lr} > map2.paf
+    racon -t ${task.cpus} ${lr} map2.paf cons1.fasta > cons2.fasta
+    minimap2 -x map-ont -t ${task.cpus} cons2.fasta ${lr} >map3.paf
+    racon -t ${task.cpus} ${lr} map3.paf cons2.fasta > ${id}_consensus_racon.fasta
     """
 }
 
@@ -421,7 +418,7 @@ process flye {
     """
     $PY27
     flye --nano-raw ${lr} --out-dir flye \
-    --genome-size ${params.genomeSize} --threads ${params.cpu} -i 0
+    --genome-size ${params.genomeSize} --threads ${task.cpus} -i 0
     cp flye/2-repeat/graph_final.gfa flye/${id}_graph_flye.gfa
     cp flye/scaffolds.fasta flye/${id}_assembly_flye.fasta
     """
@@ -601,16 +598,14 @@ def helpMessage() {
   log.info "    Short reads will be downsampled to a maximum of this coverage"
   log.info "    --targetLongReadCov <coverage> (Default: 60)"
   log.info "    Long reads will be downsampled to a maximum of this coverage"
-  log.info "    --cpu <threads>"
-  log.info "    set max number of threads per process"
-  log.info "    --mem <Gb>"
-  log.info "    set max amount of memory per process"
   log.info "    --minContigLength <length>"
   log.info "    filter final contigs for minimum length (Default: 1000)"
   log.info "          "
   log.info "  Options:"
   log.info "    --version"
   log.info "      Displays pipeline version"
+  log.info "    --help"
+  log.info "      Shows this help"
   log.info "           "
   log.info "  Profiles:"
   log.info "    -profile local "
@@ -632,6 +627,7 @@ def minimalInformationMessage() {
   // Minimal information message
   log.info "Command Line  : " + workflow.commandLine
   log.info "Profile       : " + workflow.profile
+  log.info "Available cpus: " + Runtime.getRuntime().availableProcessors()
   log.info "Project Dir   : " + workflow.projectDir
   log.info "Launch Dir    : " + workflow.launchDir
   log.info "Work Dir      : " + workflow.workDir
@@ -657,9 +653,20 @@ def pipelineMessage() {
 
 def startMessage() {
   // Display start message
-  // this.asciiArt()
+  this.asciiArt()
   this.minimalInformationMessage()
 }
+
+def asciiArt() {
+    log.info " _           _          _     _   _                          _     _       "
+    log.info "| |__  _   _| |__  _ __(_) __| | /_\\  ___ ___  ___ _ __ ___ | |__ | |_   _ "
+    log.info "| '_ \\| | | | '_ \\| '__| |/ _` |//_\\\\/ __/ __|/ _ \\ '_ ` _ \\| '_ \\| | | | |"
+    log.info "| | | | |_| | |_) | |  | | (_| /  _  \\__ \\__ \\  __/ | | | | | |_) | | |_| |"
+    log.info "|_| |_|\\__, |_.__/|_|  |_|\\__,_\\_/ \\_/___/___/\\___|_| |_| |_|_.__/|_|\\__, |"
+    log.info "       |___/                                                         |___/ "
+}
+
+
 
 workflow.onComplete {
   // Display complete message
