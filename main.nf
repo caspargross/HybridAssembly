@@ -252,7 +252,7 @@ process spades{
     if (!longReadOnly)
     """
     $PY36
-    spades.py -t ${task.cpus} -m ${task.memory} \
+    spades.py -t ${task.cpus} \
     --phred-offset 33 --careful \
     --pe1-1 ${sr1} \
     --pe1-2 ${sr2} \
