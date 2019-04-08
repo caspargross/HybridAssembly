@@ -310,11 +310,14 @@ process canu_parameters {
     output: 
     file('canu_settings.txt') into canu_settings
 
+    script:
     """
     echo \
-    'genomeSize=$params.genomeSize 
+    "genomeSize=${params.genomeSize}
     minReadLength=1000
-    ' > canu_settings.txt
+    maxMemory=${task.memory.toGiga()}
+    maxThreads=${task.cpus}
+    " > canu_settings.txt
     """
 }
 
@@ -626,7 +629,7 @@ def minimalInformationMessage() {
   // Minimal information message
   log.info "Command Line  : " + workflow.commandLine
   log.info "Profile       : " + workflow.profile
-  log.info "Available cpus: " + Runtime.getRuntime().availableProcessors()
+  log.info "Max resources : " + "$params.max_memory memory, $params.max_cpus cpus, $params.max_time time per job"
   log.info "Project Dir   : " + workflow.projectDir
   log.info "Launch Dir    : " + workflow.launchDir
   log.info "Work Dir      : " + workflow.workDir
