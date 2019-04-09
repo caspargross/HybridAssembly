@@ -317,6 +317,8 @@ process canu_parameters {
     minReadLength=1000
     maxMemory=${task.memory.toGiga()}
     maxThreads=${task.cpus}
+    #corThreads=${task.cpus}
+    useGrid=false
     " > canu_settings.txt
     """
 }
