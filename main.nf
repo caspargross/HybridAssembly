@@ -60,8 +60,11 @@ if (longReadOnly) {
 }
 
 // Shorthands for conda environment activations
-PY27 = "source activate ha_py27"
-PY36 = "source activate ha_py36"
+PY27 = "source ~/Applications/miniconda3/bin/activate ha_py27"
+PY36 = "source ~/Applications/miniconda3/bin/activate ha_py36"
+
+//PY27 = "conda activate ha_py27"
+//PY36 = "conda activate ha_py36"
 
 startMessage()
 
@@ -87,6 +90,9 @@ process porechop {
     script:
     // Join multiple longread files if possible
     """
+    echo \$(which source)
+    echo \$(conda)
+    echo \$PATH
     $PY36
     cat ${lr} > nanoreads.fastq
     porechop -i nanoreads.fastq -t ${task.cpus} -o lr_porechop.fastq
