@@ -60,11 +60,8 @@ if (longReadOnly) {
 }
 
 // Shorthands for conda environment activations
-PY27 = "source ~/Applications/miniconda3/bin/activate ha_py27"
-PY36 = "source ~/Applications/miniconda3/bin/activate ha_py36"
-
-//PY27 = "conda activate ha_py27"
-//PY36 = "conda activate ha_py36"
+PY27 = params.py27
+PY36 = params.py36
 
 startMessage()
 
@@ -473,7 +470,7 @@ process pilon{
     bowtie2-build ${contigs} contigs_index.bt2 
 
     bowtie2 --local --very-sensitive-local -I 0 -X 2000 -x contigs_index.bt2 \
-    -1 ${sr1} -2 ${sr2} | samtools sort -o alignments.bam -T reads.tmp 
+    -1 ${sr1} -2 ${sr2} -p ${task.cpus} | samtools sort -o alignments.bam -T reads.tmp 
     
     samtools index alignments.bam
 
