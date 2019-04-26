@@ -87,9 +87,6 @@ process porechop {
     script:
     // Join multiple longread files if possible
     """
-    echo \$(which source)
-    echo \$(conda)
-    echo \$PATH
     $PY36
     cat ${lr} > nanoreads.fastq
     porechop -i nanoreads.fastq -t ${task.cpus} -o lr_porechop.fastq
