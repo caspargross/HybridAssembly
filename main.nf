@@ -472,14 +472,14 @@ process pilon{
     samtools index alignments.bam
 
     pilon -Xmx16384m --genome ${contigs} --frags alignments.bam --changes \
-    --output ${id}_${type}_pilon --fix all
+    --output ${id}_${type}_pilon --fix all --threads ${task.cpus}
     """
 }
 
 process draw_assembly_graph {
 // Use Bandage to draw a picture of the assembly graph
     tag{id}
-    publishDir "${params.outDir}/${id}/assembly/graph_plot/", mode: 'copy'
+    publishDir "${params.outDir}/${id}/qc/graph_plot/", mode: 'copy'
 
     input:
     set id, type, gfa from assembly_graph_spades.mix(assembly_graph_unicycler, assembly_graph_flye, assembly_graph_miniasm, assembly_graph_canu)
