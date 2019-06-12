@@ -690,7 +690,7 @@ it.any {modes.contains(it)}
 
 def returnFile(it) {
 // Return file if it exists
-    if (workflow.profile in ['test', 'localtest'] ) {
+    if (workflow.profile in ['test', 'localtest', 'testsingularity', 'testlr', 'testlrsingularity'] ) {
         inputFile = file("$workflow.projectDir/" + it)
     } else {
         inputFile = file(it)
