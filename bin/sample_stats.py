@@ -8,6 +8,8 @@ import json
 import codecs
 from Bio import SeqIO
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from itertools import cycle, islice
 import scipy
@@ -171,7 +173,7 @@ N90s = [dat[id][x]["N50"] for x in assemblers]
 print(lengths)
 print(df_len)
 print(N50s)
-barColors = list(islice(cycle(['blue', 'skyblue']), None, len(df_len)))
+barColors = list(islice(cycle(['chartreuse', 'skyblue']), None, len(df_len)))
 fig, ax = plt.subplots()
 df_len.plot.barh(stacked=True,
                       legend=False,
@@ -179,12 +181,11 @@ df_len.plot.barh(stacked=True,
                       edgecolor = "k", ax = ax)
 ax.set_xlabel("Cumulative contig length")
 ax.set_ylabel("Assembly types")
-plt.plot(N90s, assemblers)
 plt.savefig(fname="contigs.pdf")
 plt.savefig(fname="contigs.png")
 #plt.show()
 
 
 # Export data:
-with open('qc_data_' + id + '.json', 'w') as fp:
+with open('qc_summary_' + id + '.json', 'w') as fp:
     json.dump(dat, fp)

@@ -60,8 +60,8 @@ if (longReadOnly) {
 }
 
 // Shorthands for conda environment activations
-PY27 = "source activate ha_py27"
-PY36 = "source activate ha_py36"
+PY27 = params.py27
+PY36 = params.py36
 
 startMessage()
 
@@ -467,19 +467,19 @@ process pilon{
     bowtie2-build ${contigs} contigs_index.bt2 
 
     bowtie2 --local --very-sensitive-local -I 0 -X 2000 -x contigs_index.bt2 \
-    -1 ${sr1} -2 ${sr2} | samtools sort -o alignments.bam -T reads.tmp 
+    -1 ${sr1} -2 ${sr2} -p ${task.cpus} | samtools sort -o alignments.bam -T reads.tmp 
     
     samtools index alignments.bam
 
     pilon -Xmx16384m --genome ${contigs} --frags alignments.bam --changes \
-    --output ${id}_${type}_pilon --fix all
+    --output ${id}_${type}_pilon --fix all --threads ${task.cpus}
     """
 }
 
 process draw_assembly_graph {
 // Use Bandage to draw a picture of the assembly graph
     tag{id}
-    publishDir "${params.outDir}/${id}/assembly/graph_plot/", mode: 'copy'
+    publishDir "${params.outDir}/${id}/qc/graph_plot/", mode: 'copy'
 
     input:
     set id, type, gfa from assembly_graph_spades.mix(assembly_graph_unicycler, assembly_graph_flye, assembly_graph_miniasm, assembly_graph_canu)
@@ -542,6 +542,7 @@ process per_sample_stats{
 //  set id, genomes, file("qc_data_${id}.json") into overall_stats
     file("*.pdf")
     file("*.png")
+    file("*.json")
 
     script:
     """
@@ -662,12 +663,12 @@ def startMessage() {
 }
 
 def asciiArt() {
-    log.info " _           _          _     _   _                          _     _       "
-    log.info "| |__  _   _| |__  _ __(_) __| | /_\\  ___ ___  ___ _ __ ___ | |__ | |_   _ "
-    log.info "| '_ \\| | | | '_ \\| '__| |/ _` |//_\\\\/ __/ __|/ _ \\ '_ ` _ \\| '_ \\| | | | |"
-    log.info "| | | | |_| | |_) | |  | | (_| /  _  \\__ \\__ \\  __/ | | | | | |_) | | |_| |"
-    log.info "|_| |_|\\__, |_.__/|_|  |_|\\__,_\\_/ \\_/___/___/\\___|_| |_| |_|_.__/|_|\\__, |"
-    log.info "       |___/                                                         |___/ "
+    println " _           _          _     _   _                          _     _       "
+    println "| |__  _   _| |__  _ __(_) __| | /_\\  ___ ___  ___ _ __ ___ | |__ | |_   _ "
+    println "| '_ \\| | | | '_ \\| '__| |/ _` |//_\\\\/ __/ __|/ _ \\ '_ ` _ \\| '_ \\| | | | |"
+    println "| | | | |_| | |_) | |  | | (_| /  _  \\__ \\__ \\  __/ | | | | | |_) | | |_| |"
+    println "|_| |_|\\__, |_.__/|_|  |_|\\__,_\\_/ \\_/___/___/\\___|_| |_| |_|_.__/|_|\\__, |"
+    println "       |___/                                                         |___/ "
 }
 
 
