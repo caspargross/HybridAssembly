@@ -558,7 +558,7 @@ files_init
 		storeDir : workflow.launchDir) {
         it -> 
             ['file_paths_plasmident.tsv', 
-		it[0] + '\t' + it[1].toString() + '\t' + it[6].toString()]
+		it[0] + '\t' + it[6].toString() + '\t' + it[1].toString()]
     }
 /*
 process write_plasmident_input{
